@@ -748,6 +748,42 @@
       });
     }
 
+    /*
+     * 壁纸预加载管理器：统一管理所有轮播壁纸的预加载
+     * - 以 url 为键缓存 Promise，同一张图只请求一次（重复切换不重复下载）
+     * - preload(url)：触发预加载并缓存结果
+     * - get(url)：取出已缓存的加载 Promise（切换时 await 用）
+     * - preloadNeighbors(index, list)：预取「当前 + 下一张」，构成预取窗口，
+     *   这样双击切下一张时图片通常早已在缓存中，几乎瞬时切换
+     * 两处轮播（首页 BG_IMAGES、简介页 PROFILE_WALLPAPERS）共用此管理器。
+     */
+    const wallpaperPreloader = {
+      cache: new Map(),
+
+      // 触发预加载（若已缓存则直接返回缓存的 Promise，幂等）
+      preload(url) {
+        if (!url) return Promise.resolve(false);
+        if (this.cache.has(url)) return this.cache.get(url);
+        const p = preloadImage(url);
+        this.cache.set(url, p);
+        return p;
+      },
+
+      // 取出指定 url 的预加载 Promise；未预加载过则立即触发
+      get(url) {
+        if (!this.cache.has(url)) return this.preload(url);
+        return this.cache.get(url);
+      },
+
+      // 预取 index 及其「下一张」（循环），形成预取窗口
+      preloadNeighbors(index, list) {
+        if (!Array.isArray(list) || !list.length) return;
+        this.preload(list[index]);
+        const next = list[(index + 1) % list.length];
+        this.preload(next);
+      },
+    };
+
     /* ============ 自动进入简介页（圆形扩散）============ */
     async function enterProfile() {
       const profile = document.getElementById('stageProfile');
@@ -776,11 +812,22 @@
     (function () {
       const bg = document.getElementById('bgLayer');
       if (!BG_IMAGES.length) return;
-      bg.style.backgroundImage = `url("${BG_IMAGES[0]}")`;
+
+      // 启动时预加载全部壁纸（同一张只加载一次，结果被缓存）
+      BG_IMAGES.forEach((url) => wallpaperPreloader.preload(url));
+
+      // 首图：等待预加载就绪后再显示，避免首帧白屏
+      let i = 0;
+      wallpaperPreloader.get(BG_IMAGES[0]).then(() => {
+        bg.style.backgroundImage = `url("${BG_IMAGES[0]}")`;
+      });
+
       if (BG_IMAGES.length > 1) {
-        let i = 0;
-        setInterval(() => {
-          i = (i + 1) % BG_IMAGES.length;
+        setInterval(async () => {
+          const nextIndex = (i + 1) % BG_IMAGES.length;
+          // 切换前先确认下一张已加载完成（失败则用已缓存/退化处理，不卡住）
+          await wallpaperPreloader.get(BG_IMAGES[nextIndex]);
+          i = nextIndex;
           bg.style.backgroundImage = `url("${BG_IMAGES[i]}")`;
         }, BG_INTERVAL);
       }
@@ -819,9 +866,10 @@
       profile.style.backgroundRepeat   = 'no-repeat, no-repeat';
     }
 
-    // 初始化：设置默认壁纸（索引 0）
+    // 初始化：设置默认壁纸（索引 0），并预取「当前 + 下一张」构成预取窗口
     (function () {
       applyWallpaper(currentWallpaperIndex);
+      wallpaperPreloader.preloadNeighbors(currentWallpaperIndex, PROFILE_WALLPAPERS);
     })();
 
     let isSwitching = false;  // 防抖标志：防止动画期间重复触发
@@ -829,32 +877,42 @@
     /*
      * 轮换到下一张壁纸
      * - 通过 dblclick 事件触发
-     * - 切换时先淡出 → 换图 → 淡入，过渡平滑
+     * - 切换前先 await 下一张预加载完成，确保图片已在缓存中再换图，
+     *   彻底避免切换瞬间的白屏 / 逐行加载跳变
+     * - 加载失败也继续切换（不卡住），此时使用浏览器自然退化行为
+     * - 切换完成后立即预取下下一张，维持预取窗口
      * - isSwitching 防抖：动画进行中忽略新的双击
      */
-    function nextWallpaper() {
+    async function nextWallpaper() {
       // 防抖：上一次切换动画尚未完成，忽略本次
       if (isSwitching) return;
 
       const profile = document.getElementById('stageProfile');
       // 计算下一张索引（循环）
       const nextIndex = (currentWallpaperIndex + 1) % PROFILE_WALLPAPERS.length;
+      const nextUrl = PROFILE_WALLPAPERS[nextIndex];
 
       // 标记为切换中
       isSwitching = true;
+
+      // 关键：等待下一张壁纸加载就绪后再切（已从缓存取，通常瞬时 resolve）
+      await wallpaperPreloader.get(nextUrl);
 
       // 淡出过渡：临时降低透明度
       profile.style.transition = 'opacity 0.3s ease';
       profile.style.opacity = '0.6';
 
       setTimeout(() => {
-        // 切换到下一张
+        // 切换到下一张（此时图片已在缓存，换图无闪烁）
         currentWallpaperIndex = nextIndex;
         applyWallpaper(currentWallpaperIndex);
         // 恢复透明度（淡入）
         profile.style.opacity = '1';
-        // 动画结束后释放锁
-        setTimeout(() => { isSwitching = false; }, 300);
+        // 动画结束后释放锁，并预取下一张，维持预取窗口
+        setTimeout(() => {
+          wallpaperPreloader.preloadNeighbors(currentWallpaperIndex, PROFILE_WALLPAPERS);
+          isSwitching = false;
+        }, 300);
       }, 300);
     }
 
@@ -975,6 +1033,10 @@
       // 关键：bootSequence 是 async，await 它即保证整段开场动画彻底展示完才继续
       const bootDone   = bootSequence();   // 启动打字（返回 Promise）
       const imgLoaded  = preloadImage(PROFILE_BG);
+
+      // 开场动画期间顺带预热简介页全部壁纸：逐张预加载并缓存，
+      // 这样进入主页后双击切换几乎全部命中缓存、瞬时完成
+      PROFILE_WALLPAPERS.forEach((url) => wallpaperPreloader.preload(url));
 
       await Promise.all([bootDone, imgLoaded]);  // 两者都就绪
       await sleep(600);   // 额外停留，让用户看清 "Ready." 结尾
