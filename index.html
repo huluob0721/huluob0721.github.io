@@ -3,13 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- 标签页图标（favicon），可换成自己的图片链接 -->
   <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/huluob0721/huluob0721.github.io/main/zozlogo.png">
   <title>胡萝卜的个人博客</title>
-  
+
   <style>
-    *, *::before, *::after {
-      cursor: none !important;
-    }
+    /* ============ 全局基础 ============ */
+    /* 隐藏系统鼠标，使用自定义 Q版箭头指针 */
+    *, *::before, *::after { cursor: none !important; }
 
     body {
       min-height: 100vh;
@@ -20,17 +21,12 @@
       overflow: hidden;
     }
 
-    .intro-wrapper {
-      text-align: center;
-      color: #fff;
-      animation: bounceIn 1s cubic-bezier(0.68, -0.55, 0.27, 1.55) both;
-    }
-
+    /* ============ 开场文字（Q弹入场动画）============ */
     @keyframes bounceIn {
-      0% { transform: scale(0); opacity: 0; }
-      50% { transform: scale(1.1); }
-      70% { transform: scale(0.95); }
-      100% { transform: scale(1); opacity: 1; }
+      0%   { transform: scale(0);   opacity: 0; }
+      50%  { transform: scale(1.1); }
+      70%  { transform: scale(0.95); }
+      100% { transform: scale(1);   opacity: 1; }
     }
 
     h1 {
@@ -46,6 +42,7 @@
       animation: bounceIn 1s cubic-bezier(0.68, -0.55, 0.27, 1.55) 0.4s both;
     }
 
+    /* ============ 鼠标尾拖粒子 ============ */
     .cursor-particle {
       position: fixed;
       width: 12px;
@@ -58,10 +55,11 @@
     }
 
     @keyframes particleFade {
-      0% { opacity: 1; transform: scale(1); }
+      0%   { opacity: 1; transform: scale(1); }
       100% { opacity: 0; transform: scale(0) translateY(-20px); }
     }
 
+    /* ============ Q版箭头指针 ============ */
     .q-arrow {
       position: fixed;
       width: 28px;
@@ -70,6 +68,7 @@
       z-index: 10000;
     }
 
+    /* 箭头图形（内联 SVG，零外链依赖） */
     .q-arrow::before {
       content: '';
       position: absolute;
@@ -79,14 +78,15 @@
       transition: transform 0.15s ease;
     }
 
-    .q-arrow.hover::before {
-      transform: scale(1.3) rotate(-5deg);
-    }
+    /* 悬停文字时：箭头放大弹跳 */
+    .q-arrow.hover::before { transform: scale(1.3) rotate(-5deg); }
 
+    /* 进入简介页后：箭头描边换深色 */
     .q-arrow.on-profile::before {
       background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 28'%3E%3Cpath d='M5 3 L22 13 L14 14.5 L17.5 21 Z' fill='%23ffffff' stroke='%234f46e5' stroke-width='2.2' stroke-linejoin='round' stroke-linecap='round'/%3E%3C/svg%3E") center/contain no-repeat;
     }
 
+    /* ============ 点击冒出的爱心 ============ */
     .click-heart {
       position: fixed;
       pointer-events: none;
@@ -95,21 +95,12 @@
     }
 
     @keyframes heartFloat {
-      0% {
-        opacity: 1;
-        transform: scale(0) rotate(0deg);
-      }
-      20% {
-        transform: scale(1.4) rotate(-5deg);
-      }
-      100% {
-        opacity: 0;
-        transform: scale(0.5) translateY(-100px) rotate(10deg);
-      }
+      0%   { opacity: 1; transform: scale(0)   rotate(0deg); }
+      20%  { transform: scale(1.4) rotate(-5deg); }
+      100% { opacity: 0; transform: scale(0.5) translateY(-100px) rotate(10deg); }
     }
-  </style>
 
-  <style>
+    /* ============ 底部"按下继续"提示 ============ */
     .continue-hint {
       position: fixed;
       bottom: 40px;
@@ -124,20 +115,39 @@
       z-index: 50;
       animation: hintBreathe 1.6s ease-in-out infinite;
     }
-
     .continue-hint.show { opacity: 1; }
 
     @keyframes hintBreathe {
       0%, 100% { opacity: 0.5; }
-      50% { opacity: 1; }
+      50%      { opacity: 1; }
     }
 
+    /* ============ 首页开场区 ============ */
     .stage-intro {
       position: relative;
       z-index: 10;
       transition: opacity 0.5s ease;
     }
 
+    /* ============ 首页背景层（供 BG_IMAGES 接口使用）============ */
+    .bg-layer {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      background-size: cover;
+      background-position: center;
+      transition: opacity 1.2s ease;
+    }
+
+    /* 紫色氛围遮罩（注意：z-index 必须低于简介页，避免残留） */
+    .bg-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+      background: linear-gradient(135deg, rgba(102,126,234,0.55), rgba(118,75,162,0.55));
+    }
+
+    /* ============ 个人简介页（圆形揭示）============ */
     .stage-profile {
       position: fixed;
       inset: 0;
@@ -147,6 +157,7 @@
         radial-gradient(circle at 80% 30%, rgba(236,72,153,0.4) 0%, transparent 50%),
         radial-gradient(circle at 50% 80%, rgba(52,211,153,0.4) 0%, transparent 50%),
         linear-gradient(135deg, #eef2ff 0%, #fdf2f8 50%, #ecfdf5 100%);
+      /* 初始：从中心缩为 0（不可见） */
       clip-path: circle(0px at 50% 50%);
       -webkit-clip-path: circle(0px at 50% 50%);
       transition: clip-path 0.9s cubic-bezier(0.68, -0.55, 0.27, 1.55);
@@ -156,11 +167,14 @@
       overflow: auto;
     }
 
+    /* 展开后：圆形扩大到覆盖全屏；z-index 盖住底部紫色 bg-overlay */
     .stage-profile.open {
       clip-path: circle(150vmax at var(--origin-x, 50%) var(--origin-y, 50%));
       -webkit-clip-path: circle(150vmax at var(--origin-x, 50%) var(--origin-y, 50%));
+      z-index: 101;
     }
 
+    /* ============ 亚克力简介卡片 ============ */
     .profile-card {
       background: rgba(255, 255, 255, 0.35);
       backdrop-filter: blur(18px) saturate(160%);
@@ -178,13 +192,12 @@
       transform: scale(0.7) translateY(30px);
       transition: all 0.6s cubic-bezier(0.68, -0.55, 0.27, 1.55) 0.4s;
     }
-
     .stage-profile.open .profile-card {
       opacity: 1;
       transform: scale(1) translateY(0);
     }
 
-    /* 头像图片 */
+    /* 头像（自定义图片，接口见 AVATAR_URL） */
     .avatar {
       width: 84px;
       height: 84px;
@@ -196,7 +209,7 @@
       box-shadow: 0 4px 16px rgba(0,0,0,0.15);
     }
 
-    /* 默认占位圆 */
+    /* 头像未配置时的默认占位圆 */
     .avatar-fallback {
       width: 84px;
       height: 84px;
@@ -205,57 +218,34 @@
       margin: 0 auto 20px;
     }
 
-    .profile-card h2 {
-      font-size: 26px;
-      color: #1e293b;
-      margin-bottom: 6px;
-    }
-
-    .profile-card .subtitle {
-      font-size: 15px;
-      color: #64748b;
-      margin-bottom: 24px;
-    }
-
-    .profile-card .bio {
+    .profile-card h2      { font-size: 26px; color: #1e293b; margin-bottom: 6px; }
+    .profile-card .subtitle { font-size: 15px; color: #64748b; margin-bottom: 24px; }
+    .profile-card .bio    {
       font-size: 14px;
       color: #475569;
       line-height: 1.8;
       margin-bottom: 24px;
     }
-
-    .bg-layer {
-      position: fixed;
-      inset: 0;
-      z-index: 0;
-      background-size: cover;
-      background-position: center;
-      transition: opacity 1.2s ease;
-    }
-
-    .bg-overlay {
-      position: fixed;
-      inset: 0;
-      z-index: 1;
-      background: linear-gradient(135deg, rgba(102,126,234,0.55), rgba(118,75,162,0.55));
-    }
-
-    .stage-intro { z-index: 10; }
   </style>
 </head>
 <body>
 
+  <!-- 首页背景层 + 紫色氛围遮罩 -->
   <div class="bg-layer" id="bgLayer"></div>
   <div class="bg-overlay"></div>
 
+  <!-- 开场文字区 -->
   <div class="stage-intro" id="stageIntro">
     <h1>你好，陌生人</h1>
     <p>我是胡萝卜，欢迎来到我的个人博客</p>
   </div>
 
+  <!-- 自定义鼠标指针 -->
   <div class="q-arrow" id="qArrow"></div>
+  <!-- 底部提示（5秒后淡入） -->
   <div class="continue-hint" id="continueHint">🖱 按下鼠标继续</div>
 
+  <!-- 个人简介页（初始隐藏，点击后圆形揭示展开） -->
   <div class="stage-profile" id="stageProfile">
     <div class="profile-card">
       <img class="avatar" id="avatarImg" alt="avatar">
@@ -270,63 +260,59 @@
   </div>
 
   <script>
+    /* ============ 配置接口（按需修改）============ */
+    const BG_IMAGES   = [];                                 // 首页背景图轮播，留空则保持渐变
+    const BG_INTERVAL = 6000;                               // 轮播间隔(ms)
+    const PROFILE_BG  = 'https://raw.githubusercontent.com/huluob0721/huluob0721.github.io/main/Background.png';  // 简介页背景图，留空=默认渐变
+    const AVATAR_URL  = 'https://raw.githubusercontent.com/huluob0721/huluob0721.github.io/main/Profile_Picture.png'; // 头像，留空=默认圆
+
+    /* ============ 自定义鼠标跟随 + 尾拖粒子 ============ */
     const qArrow = document.getElementById('qArrow');
 
     document.addEventListener('mousemove', (e) => {
       qArrow.style.left = e.clientX + 'px';
-      qArrow.style.top = e.clientY + 'px';
+      qArrow.style.top  = e.clientY + 'px';
       createParticle(e.clientX, e.clientY);
     });
 
+    // 在鼠标位置生成一个渐隐的彩色粒子
     function createParticle(x, y) {
       const p = document.createElement('div');
       p.className = 'cursor-particle';
       p.style.left = x - 6 + 'px';
-      p.style.top = y - 6 + 'px';
+      p.style.top  = y - 6 + 'px';
       const s = Math.random() * 8 + 4;
-      p.style.width = s + 'px';
+      p.style.width  = s + 'px';
       p.style.height = s + 'px';
       p.style.background = `hsla(${Math.random()*360},100%,80%,0.8)`;
       document.body.appendChild(p);
       setTimeout(() => p.remove(), 800);
     }
 
+    // 悬停在文字上时箭头放大
     document.querySelectorAll('h1, p').forEach(el => {
       el.addEventListener('mouseenter', () => qArrow.classList.add('hover'));
       el.addEventListener('mouseleave', () => qArrow.classList.remove('hover'));
     });
 
-    // ===== 全局点击爱心（SVG 大号明显版）=====
+    /* ============ 爱心颜色池 ============ */
     const HEART_COLORS = ['#ff6b81', '#ff4757', '#ff3838', '#ff9ff3', '#f368e0', '#ee5a24'];
 
-    document.addEventListener('click', (e) => {
-      const heart = document.createElement('div');
-      heart.className = 'click-heart';
-      heart.style.left = e.clientX - 25 + 'px';
-      heart.style.top = e.clientY - 25 + 'px';
-
-      const size = Math.random() * 18 + 32;
-      const color = HEART_COLORS[Math.floor(Math.random() * HEART_COLORS.length)];
-
-      heart.innerHTML = `<svg width="${size}" height="${size}" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" fill="${color}"/>
-      </svg>`;
-
-      document.body.appendChild(heart);
-      setTimeout(() => heart.remove(), 1000);
-    });
-
-    // ===== 第一次点击：展开简介 =====
+    /* ============ 统一点击事件（爱心 + 首次展开简介）============ */
     let revealed = false;
 
     document.addEventListener('click', (e) => {
+      // 1) 每次点击都冒爱心（全局效果）
+      spawnHeart(e.clientX, e.clientY);
+
+      // 2) 仅首次点击展开简介
       if (revealed) return;
       revealed = true;
 
-      const x = e.clientX, y = e.clientY;
       const profile = document.getElementById('stageProfile');
-      profile.style.setProperty('--origin-x', x + 'px');
-      profile.style.setProperty('--origin-y', y + 'px');
+      // 记录点击位置作为圆形揭示的扩散起点
+      profile.style.setProperty('--origin-x', e.clientX + 'px');
+      profile.style.setProperty('--origin-y', e.clientY + 'px');
 
       document.getElementById('continueHint').classList.remove('show');
       document.getElementById('stageIntro').style.opacity = '0';
@@ -335,16 +321,31 @@
       qArrow.classList.add('on-profile');
     });
 
-    // ===== 首页背景图接口 =====
-    const BG_IMAGES = [];
-    const BG_INTERVAL = 6000;
+    // 在 (x,y) 处生成一个随机大小/颜色的 SVG 爱心
+    function spawnHeart(x, y) {
+      const heart = document.createElement('div');
+      heart.className = 'click-heart';
+      heart.style.left = x - 25 + 'px';
+      heart.style.top  = y - 25 + 'px';
 
+      const size  = Math.random() * 18 + 32;  // 32~50px
+      const color = HEART_COLORS[Math.floor(Math.random() * HEART_COLORS.length)];
+
+      heart.innerHTML = `<svg width="${size}" height="${size}" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" fill="${color}"/>
+      </svg>`;
+
+      document.body.appendChild(heart);
+      setTimeout(() => heart.remove(), 1000);
+    }
+
+    /* ============ 首页背景图轮播 ============ */
     (function () {
       const bg = document.getElementById('bgLayer');
-      if (!BG_IMAGES.length) return;
-      let i = 0;
+      if (!BG_IMAGES.length) return;          // 空数组则保持渐变
       bg.style.backgroundImage = `url("${BG_IMAGES[0]}")`;
       if (BG_IMAGES.length > 1) {
+        let i = 0;
         setInterval(() => {
           i = (i + 1) % BG_IMAGES.length;
           bg.style.backgroundImage = `url("${BG_IMAGES[i]}")`;
@@ -352,29 +353,25 @@
       }
     })();
 
-    // ===== 简介页背景图接口 =====
-    const PROFILE_BG = 'https://raw.githubusercontent.com/huluob0721/huluob0721.github.io/main/Background.png';
-
+    /* ============ 简介页背景图 ============ */
     (function () {
       const profile = document.getElementById('stageProfile');
-      if (!PROFILE_BG) return;
-
+      if (!PROFILE_BG) return;                // 留空则用默认渐变
+      // 图片上层叠加半透明白雾，保证文字清晰
       profile.style.backgroundImage = `
         linear-gradient(135deg, rgba(238,242,255,0.55), rgba(253,242,248,0.55)),
         url("${PROFILE_BG}")
       `;
-      profile.style.backgroundSize = 'cover, cover';
+      profile.style.backgroundSize  = 'cover, cover';
       profile.style.backgroundPosition = 'center, center';
-      profile.style.backgroundRepeat = 'no-repeat, no-repeat';
+      profile.style.backgroundRepeat   = 'no-repeat, no-repeat';
     })();
 
-    // ===== 头像图片接口 =====
-    const AVATAR_URL = 'https://raw.githubusercontent.com/huluob0721/huluob0721.github.io/main/Profile_Picture.png'; // 填你的头像 https 链接，留空显示默认渐变圆
-
+    /* ============ 头像图片 ============ */
     (function () {
       const img = document.getElementById('avatarImg');
       const fallback = document.getElementById('avatarFallback');
-      if (!AVATAR_URL) {
+      if (!AVATAR_URL) {                      // 留空则显示默认占位圆
         img.style.display = 'none';
         fallback.style.display = 'block';
         return;
@@ -384,6 +381,7 @@
       fallback.style.display = 'none';
     })();
 
+    /* ============ 5秒后显示"按下继续"提示 ============ */
     setTimeout(() => {
       document.getElementById('continueHint').classList.add('show');
     }, 5000);
