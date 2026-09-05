@@ -7,6 +7,46 @@
   <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/huluob0721/huluob0721.github.io/main/zozlogo.png">
   <title>胡萝卜的个人博客</title>
 
+  <!--
+    主页中文字体：思源黑体（Source Han / Noto Sans SC）
+    通过国内可访问的 CDN 引入（bootcdn 镜像 Google Fonts），
+    大陆与海外均可正常加载；无需翻墙，也不依赖本地字体文件。
+    仅简介卡片使用，开场终端仍用系统等宽字体，互不干扰。
+  -->
+  <link rel="preconnect" href="https://cdn.bootcdn.net" crossorigin>
+  <style>
+    /* 通过 @font-face 从国内 CDN 加载思源黑体 woff2（大陆直连可用） */
+    @font-face {
+      font-family: 'Source Han Sans CN';
+      font-style: normal;
+      font-weight: 400;
+      font-display: swap;
+      src: url('https://cdn.bootcdn.net/ajax/libs/fonts/SourceHanSansCN/2.0/SourceHanSansCN-Normal.woff2') format('woff2');
+    }
+    @font-face {
+      font-family: 'Source Han Sans CN';
+      font-style: normal;
+      font-weight: 500;
+      font-display: swap;
+      src: url('https://cdn.bootcdn.net/ajax/libs/fonts/SourceHanSansCN/2.0/SourceHanSansCN-Medium.woff2') format('woff2');
+    }
+    @font-face {
+      font-family: 'Source Han Sans CN';
+      font-style: normal;
+      font-weight: 700;
+      font-display: swap;
+      src: url('https://cdn.bootcdn.net/ajax/libs/fonts/SourceHanSansCN/2.0/SourceHanSansCN-Bold.woff2') format('woff2');
+    }
+    /* 标题用更活泼的站酷小薇体（国内 CDN 直连） */
+    @font-face {
+      font-family: 'ZCOOL KuaiLe';
+      font-style: normal;
+      font-weight: 400;
+      font-display: swap;
+      src: url('https://cdn.bootcdn.net/ajax/libs/fonts/ZCOOLKuaiLe/1.0/ZCOOLKuaiLe-Regular.woff2') format('woff2');
+    }
+  </style>
+
   <style>
     /* ============ 全局基础 ============ */
     /* 隐藏系统鼠标，使用自定义 Q版箭头指针 */
@@ -14,35 +54,14 @@
 
     body {
       min-height: 100vh;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      background: #0d1117;  /* 终端深色底色 */
+      color: #c9d1d9;
+      /* 开场终端用等宽字体；进入主页后中文由下方单独指定 */
+      font-family: 'Menlo', 'Consolas', 'Courier New', monospace;
       overflow: hidden;
     }
 
-    /* ============ 开场文字（Q弹入场动画）============ */
-    @keyframes bounceIn {
-      0%   { transform: scale(0);   opacity: 0; }
-      50%  { transform: scale(1.1); }
-      70%  { transform: scale(0.95); }
-      100% { transform: scale(1);   opacity: 1; }
-    }
-
-    h1 {
-      font-size: 48px;
-      margin-bottom: 16px;
-      animation: bounceIn 1s cubic-bezier(0.68, -0.55, 0.27, 1.55) 0.2s both;
-      text-shadow: 0 4px 20px rgba(0,0,0,0.2);
-    }
-
-    p {
-      font-size: 20px;
-      opacity: 0.9;
-      animation: bounceIn 1s cubic-bezier(0.68, -0.55, 0.27, 1.55) 0.4s both;
-    }
-
-    /* ============ 鼠标尾拖粒子 ============ */
+    /* ============ 自定义鼠标跟随 + 尾拖粒子 ============ */
     .cursor-particle {
       position: fixed;
       width: 12px;
@@ -53,13 +72,11 @@
       z-index: 9999;
       animation: particleFade 0.8s ease-out forwards;
     }
-
     @keyframes particleFade {
       0%   { opacity: 1; transform: scale(1); }
       100% { opacity: 0; transform: scale(0) translateY(-20px); }
     }
 
-    /* ============ Q版箭头指针 ============ */
     .q-arrow {
       position: fixed;
       width: 28px;
@@ -67,8 +84,6 @@
       pointer-events: none;
       z-index: 10000;
     }
-
-    /* 箭头图形（内联 SVG，零外链依赖） */
     .q-arrow::before {
       content: '';
       position: absolute;
@@ -77,11 +92,7 @@
       filter: drop-shadow(0 2px 4px rgba(0,0,0,0.25));
       transition: transform 0.15s ease;
     }
-
-    /* 悬停文字时：箭头放大弹跳 */
     .q-arrow.hover::before { transform: scale(1.3) rotate(-5deg); }
-
-    /* 进入简介页后：箭头描边换深色 */
     .q-arrow.on-profile::before {
       background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 28'%3E%3Cpath d='M5 3 L22 13 L14 14.5 L17.5 21 Z' fill='%23ffffff' stroke='%234f46e5' stroke-width='2.2' stroke-linejoin='round' stroke-linecap='round'/%3E%3C/svg%3E") center/contain no-repeat;
     }
@@ -93,40 +104,91 @@
       z-index: 9998;
       animation: heartFloat 1s ease-out forwards;
     }
-
     @keyframes heartFloat {
       0%   { opacity: 1; transform: scale(0)   rotate(0deg); }
       20%  { transform: scale(1.4) rotate(-5deg); }
       100% { opacity: 0; transform: scale(0.5) translateY(-100px) rotate(10deg); }
     }
 
-    /* ============ 底部"按下继续"提示 ============ */
-    .continue-hint {
-      position: fixed;
-      bottom: 40px;
-      left: 50%;
-      transform: translateX(-50%);
-      color: rgba(255,255,255,0.7);
-      font-size: 14px;
-      letter-spacing: 2px;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.8s ease;
-      z-index: 50;
-      animation: hintBreathe 1.6s ease-in-out infinite;
-    }
-    .continue-hint.show { opacity: 1; }
-
-    @keyframes hintBreathe {
-      0%, 100% { opacity: 0.5; }
-      50%      { opacity: 1; }
-    }
-
-    /* ============ 首页开场区 ============ */
+    /* ============ 代码打字开场区 ============ */
     .stage-intro {
       position: relative;
       z-index: 10;
-      transition: opacity 0.5s ease;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      transition: opacity 0.6s ease;
+    }
+    .terminal {
+      width: 100%;
+      max-width: 640px;
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+      overflow: hidden;
+    }
+    .terminal-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      background: #21262d;
+      border-bottom: 1px solid #30363d;
+    }
+    .terminal-bar .dot {
+      width: 12px; height: 12px; border-radius: 50%;
+      background: #ff5f56;
+    }
+    .terminal-bar .dot:nth-child(2) { background: #ffbd2e; }
+    .terminal-bar .dot:nth-child(3) { background: #27c93f; }
+    .terminal-bar .title {
+      margin-left: 10px;
+      font-size: 12px;
+      color: #8b949e;
+    }
+    .terminal-body {
+      padding: 22px 26px;
+      font-size: 15px;
+      line-height: 1.9;
+      min-height: 220px;
+    }
+    .line { white-space: pre-wrap; }
+    .prompt { color: #7ee787; }
+    .cmd    { color: #d2a8ff; }
+    .ok     { color: #7ee787; }
+    .err    { color: #ff7b72; }
+    .out    { color: #c9d1d9; }
+    .muted  { color: #8b949e; }
+    /* 打字光标闪烁 */
+    .cursor {
+      display: inline-block;
+      width: 8px; height: 1em;
+      background: #c9d1d9;
+      vertical-align: text-bottom;
+      animation: blink 1s steps(1) infinite;
+      margin-left: 2px;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+
+    /* 进度条 */
+    .progress {
+      display: inline-block;
+      width: 160px;
+      height: 8px;
+      border-radius: 4px;
+      background: #30363d;
+      vertical-align: middle;
+      overflow: hidden;
+    }
+    .progress > i {
+      display: block;
+      height: 100%;
+      width: 0;
+      background: linear-gradient(90deg, #7ee787, #d2a8ff);
+      transition: width 0.2s linear;
     }
 
     /* ============ 首页背景层（供 BG_IMAGES 接口使用）============ */
@@ -138,8 +200,6 @@
       background-position: center;
       transition: opacity 1.2s ease;
     }
-
-    /* 紫色氛围遮罩（注意：z-index 必须低于简介页，避免残留） */
     .bg-overlay {
       position: fixed;
       inset: 0;
@@ -157,7 +217,6 @@
         radial-gradient(circle at 80% 30%, rgba(236,72,153,0.4) 0%, transparent 50%),
         radial-gradient(circle at 50% 80%, rgba(52,211,153,0.4) 0%, transparent 50%),
         linear-gradient(135deg, #eef2ff 0%, #fdf2f8 50%, #ecfdf5 100%);
-      /* 初始：从中心缩为 0（不可见） */
       clip-path: circle(0px at 50% 50%);
       -webkit-clip-path: circle(0px at 50% 50%);
       transition: clip-path 0.9s cubic-bezier(0.68, -0.55, 0.27, 1.55);
@@ -166,7 +225,6 @@
       justify-content: center;
       overflow: auto;
     }
-
     /* 展开后：圆形扩大到覆盖全屏；z-index 盖住底部紫色 bg-overlay */
     .stage-profile.open {
       clip-path: circle(150vmax at var(--origin-x, 50%) var(--origin-y, 50%));
@@ -191,6 +249,8 @@
       opacity: 0;
       transform: scale(0.7) translateY(30px);
       transition: all 0.6s cubic-bezier(0.68, -0.55, 0.27, 1.55) 0.4s;
+      /* 主页正文使用思源黑体（大陆 CDN 加载），失败则降级到系统等宽/无衬线 */
+      font-family: 'Source Han Sans CN', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
     }
     .stage-profile.open .profile-card {
       opacity: 1;
@@ -208,7 +268,6 @@
       border: 3px solid rgba(255,255,255,0.8);
       box-shadow: 0 4px 16px rgba(0,0,0,0.15);
     }
-
     /* 头像未配置时的默认占位圆 */
     .avatar-fallback {
       width: 84px;
@@ -218,13 +277,109 @@
       margin: 0 auto 20px;
     }
 
-    .profile-card h2      { font-size: 26px; color: #1e293b; margin-bottom: 6px; }
-    .profile-card .subtitle { font-size: 15px; color: #64748b; margin-bottom: 24px; }
-    .profile-card .bio    {
+    /* 主页标题：用更具设计感的字体 */
+    .profile-card h2 {
+      font-family: 'ZCOOL KuaiLe', 'Source Han Sans CN', 'Noto Sans SC', sans-serif;
+      font-size: 30px;
+      color: #1e293b;
+      margin-bottom: 6px;
+      letter-spacing: 1px;
+    }
+    .profile-card .subtitle {
+      font-size: 15px;
+      color: #64748b;
+      margin-bottom: 24px;
+      font-weight: 500;
+    }
+    .profile-card .bio {
       font-size: 14px;
       color: #475569;
       line-height: 1.8;
       margin-bottom: 24px;
+    }
+
+    /* ============ 新闻活动列表 ============ */
+    .news-section {
+      margin-top: 8px;
+      text-align: left;
+    }
+    .news-section .section-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #334155;
+      margin-bottom: 12px;
+      padding-left: 10px;
+      border-left: 4px solid #667eea;   /* 左侧色条点缀 */
+    }
+    .news-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-height: 260px;               /* 超出可滚动，避免列表过长 */
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+    /* 滚动条美化（WebKit） */
+    .news-list::-webkit-scrollbar { width: 6px; }
+    .news-list::-webkit-scrollbar-thumb {
+      background: rgba(102,126,234,0.4);
+      border-radius: 3px;
+    }
+    .news-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: rgba(255,255,255,0.5);
+      border: 1px solid rgba(255,255,255,0.7);
+      transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+    }
+    .news-item:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 18px rgba(31,38,135,0.12);
+      background: rgba(255,255,255,0.75);
+    }
+    /* 点击整条 item 也可跳转（当存在链接时） */
+    .news-item.has-link { cursor: none; }
+    .news-date {
+      flex-shrink: 0;
+      font-size: 11px;
+      color: #667eea;
+      font-weight: 700;
+      background: rgba(102,126,234,0.12);
+      padding: 4px 8px;
+      border-radius: 8px;
+      white-space: nowrap;
+    }
+    .news-text {
+      flex: 1;
+      text-align: left;
+    }
+    .news-title {
+      font-size: 13px;
+      color: #1e293b;
+      font-weight: 500;
+      line-height: 1.5;
+      /* 多行截断（最多 2 行） */
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .news-item.has-link .news-title { color: #4338ca; }  /* 有链接的标题偏蓝 */
+    .news-tag {
+      display: inline-block;
+      font-size: 10px;
+      color: #ec4899;
+      background: rgba(236,72,153,0.12);
+      padding: 2px 7px;
+      border-radius: 6px;
+      margin-top: 5px;
+      font-weight: 600;
     }
   </style>
 </head>
@@ -234,18 +389,21 @@
   <div class="bg-layer" id="bgLayer"></div>
   <div class="bg-overlay"></div>
 
-  <!-- 开场文字区 -->
+  <!-- 代码打字开场区 -->
   <div class="stage-intro" id="stageIntro">
-    <h1>你好，陌生人</h1>
-    <p>我是胡萝卜，欢迎来到我的个人博客</p>
+    <div class="terminal">
+      <div class="terminal-bar">
+        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        <span class="title">welcome.sh — bash</span>
+      </div>
+      <div class="terminal-body" id="terminalBody"></div>
+    </div>
   </div>
 
   <!-- 自定义鼠标指针 -->
   <div class="q-arrow" id="qArrow"></div>
-  <!-- 底部提示（5秒后淡入） -->
-  <div class="continue-hint" id="continueHint">🖱 按下鼠标继续</div>
 
-  <!-- 个人简介页（初始隐藏，点击后圆形揭示展开） -->
+  <!-- 个人简介页（初始隐藏，开场动画完整展示后自动圆形揭示展开） -->
   <div class="stage-profile" id="stageProfile">
     <div class="profile-card">
       <img class="avatar" id="avatarImg" alt="avatar">
@@ -254,7 +412,13 @@
       <p class="subtitle">一名对电脑感兴趣的学生</p>
       <div class="bio">
         <p>你好！我是一名来自上海市的高一学生，目前就读于上海市第二中学本部</p>
-        <p>兴趣爱好有：编程，运动，打游戏</p>
+        <p>兴趣爱好有：编程，看番，运动，打游戏</p>
+      </div>
+
+      <!-- 动态列表（时间线）：由 DYNAMICS 数据驱动渲染 -->
+      <div class="news-section">
+        <div class="section-title">📌 最近动态</div>
+        <ul class="news-list" id="newsMount"></ul>
       </div>
     </div>
   </div>
@@ -265,17 +429,27 @@
     const BG_INTERVAL = 6000;                               // 轮播间隔(ms)
     const PROFILE_BG  = 'https://raw.githubusercontent.com/huluob0721/huluob0721.github.io/main/Background.png';  // 简介页背景图，留空=默认渐变
     const AVATAR_URL  = 'https://raw.githubusercontent.com/huluob0721/huluob0721.github.io/main/Profile_Picture.png'; // 头像，留空=默认圆
+    const PRELOAD_TIMEOUT = 3000;                           // 背景图预加载最长等待(ms)
+
+    /*
+     * 动态列表（主页简介下方的时间线）
+     * - 按时间倒序排列，想加多少加多少
+     * - date: 日期；text: 正文；tag(可选): 小标签，如 "新" / "更新"
+     * - link(可选): 填写后整条可点击跳转
+     */
+    const DYNAMICS = [
+      { date: '2026.09.05', text: '博客上线啦 🎉',                       tag: '新' },
+      { date: '2026.09.01', text: '开学了，高一加油 💪' },
+      { date: '2026.08.31', text: '学会用 GitHub Pages 搭网站 🌐' },
+    ];
 
     /* ============ 自定义鼠标跟随 + 尾拖粒子 ============ */
     const qArrow = document.getElementById('qArrow');
-
     document.addEventListener('mousemove', (e) => {
       qArrow.style.left = e.clientX + 'px';
       qArrow.style.top  = e.clientY + 'px';
       createParticle(e.clientX, e.clientY);
     });
-
-    // 在鼠标位置生成一个渐隐的彩色粒子
     function createParticle(x, y) {
       const p = document.createElement('div');
       p.className = 'cursor-particle';
@@ -288,7 +462,6 @@
       document.body.appendChild(p);
       setTimeout(() => p.remove(), 800);
     }
-
     // 悬停在文字上时箭头放大
     document.querySelectorAll('h1, p').forEach(el => {
       el.addEventListener('mouseenter', () => qArrow.classList.add('hover'));
@@ -297,52 +470,143 @@
 
     /* ============ 爱心颜色池 ============ */
     const HEART_COLORS = ['#ff6b81', '#ff4757', '#ff3838', '#ff9ff3', '#f368e0', '#ee5a24'];
-
-    /* ============ 统一点击事件（爱心 + 首次展开简介）============ */
-    let revealed = false;
-
+    // 全局点击冒爱心（开场阶段 & 简介页都生效）
     document.addEventListener('click', (e) => {
-      // 1) 每次点击都冒爱心（全局效果）
       spawnHeart(e.clientX, e.clientY);
-
-      // 2) 仅首次点击展开简介
-      if (revealed) return;
-      revealed = true;
-
-      const profile = document.getElementById('stageProfile');
-      // 记录点击位置作为圆形揭示的扩散起点
-      profile.style.setProperty('--origin-x', e.clientX + 'px');
-      profile.style.setProperty('--origin-y', e.clientY + 'px');
-
-      document.getElementById('continueHint').classList.remove('show');
-      document.getElementById('stageIntro').style.opacity = '0';
-
-      profile.classList.add('open');
-      qArrow.classList.add('on-profile');
     });
-
-    // 在 (x,y) 处生成一个随机大小/颜色的 SVG 爱心
     function spawnHeart(x, y) {
       const heart = document.createElement('div');
       heart.className = 'click-heart';
       heart.style.left = x - 25 + 'px';
       heart.style.top  = y - 25 + 'px';
-
-      const size  = Math.random() * 18 + 32;  // 32~50px
+      const size  = Math.random() * 18 + 32;
       const color = HEART_COLORS[Math.floor(Math.random() * HEART_COLORS.length)];
-
       heart.innerHTML = `<svg width="${size}" height="${size}" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
         <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" fill="${color}"/>
       </svg>`;
-
       document.body.appendChild(heart);
       setTimeout(() => heart.remove(), 1000);
+    }
+
+    /* ============ 代码打字开场机 ============ */
+    const body = document.getElementById('terminalBody');
+    let typing = false;
+
+    // 追加一行：打字效果（cls 为颜色类）
+    function typeLine(text, cls = 'out', speed = 28) {
+      return new Promise((resolve) => {
+        const line = document.createElement('div');
+        line.className = 'line';
+        body.appendChild(line);
+        const cursor = document.createElement('span');
+        cursor.className = 'cursor';
+        body.appendChild(cursor);
+
+        let i = 0;
+        typing = true;
+        const timer = setInterval(() => {
+          line.textContent += text.charAt(i);  // textContent 避免 HTML 被逐字解析
+          i++;
+          window.scrollTo(0, document.body.scrollHeight);
+          if (i >= text.length) {
+            clearInterval(timer);
+            cursor.remove();
+            line.classList.add(cls);
+            typing = false;
+            resolve();
+          }
+        }, speed);
+      });
+    }
+
+    // 追加一行即时显示（如进度条完成后的状态）
+    function addLine(html, cls = 'out') {
+      const line = document.createElement('div');
+      line.className = 'line ' + cls;
+      line.innerHTML = html;
+      body.appendChild(line);
+      window.scrollTo(0, document.body.scrollHeight);
+      return line;
+    }
+
+    // 进度条动画：从 0 到 100
+    function runProgress(label) {
+      return new Promise((resolve) => {
+        const line = addLine(`<span class="muted">${label}</span> <span class="progress"><i></i></span> `, 'out');
+        const bar = line.querySelector('.progress > i');
+        let w = 0;
+        const step = setInterval(() => {
+          w += Math.random() * 12 + 6;
+          if (w >= 100) { w = 100; clearInterval(step); }
+          bar.style.width = w + '%';
+          if (w === 100) {
+            line.innerHTML = `<span class="muted">${label}</span> <span class="ok">[OK]</span>`;
+            resolve();
+          }
+        }, 90);
+      });
+    }
+
+    // 执行开机脚本序列；返回 Promise，全部展示完才 resolve
+    async function bootSequence() {
+      addLine('<span class="muted"># 胡萝卜的博客 · 启动中</span>');
+      await sleep(400);
+      await typeLine('$ ./welcome.sh', 'cmd', 40);
+      await sleep(300);
+      await runProgress('Loading assets');
+      await runProgress('Fetching profile');
+      await typeLine('> Initializing...', 'cmd', 24);
+      await typeLine('你好，陌生人', 'out', 45);
+      await typeLine('我是胡萝卜，欢迎来到我的个人博客', 'out', 35);
+      await sleep(200);
+      await typeLine('> Ready.', 'ok', 40);
+      addLine('<span class="cursor"></span>');
+    }
+
+    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+    /* ============ 背景图预加载 ============ */
+    function preloadImage(url, timeout = PRELOAD_TIMEOUT) {
+      return new Promise((resolve) => {
+        if (!url) return resolve(false);  // 没配图直接过
+        const img = new Image();
+        let done = false;
+        const finish = () => { if (!done) { done = true; resolve(true); } };
+        img.onload  = finish;
+        img.onerror = () => resolve(false);       // 失败也继续，不卡住
+        setTimeout(finish, timeout);              // 超时兜底
+        img.src = url;
+      });
+    }
+
+    /* ============ 自动进入简介页（圆形扩散）============ */
+    async function enterProfile() {
+      const profile = document.getElementById('stageProfile');
+      // 扩散起点：从中心
+      profile.style.setProperty('--origin-x', '50%');
+      profile.style.setProperty('--origin-y', '50%');
+
+      // 开场区淡出
+      const intro = document.getElementById('stageIntro');
+      intro.style.opacity = '0';
+      await sleep(400);
+      intro.style.display = 'none';
+
+      // 先渲染动态列表（此时卡片 opacity:0，渲染完再一起揭示，避免闪动）
+      renderDynamics();
+
+      // 触发圆形扩散揭示
+      profile.classList.add('open');
+      qArrow.classList.add('on-profile');
+
+      // 等待扩散动画完成，确保"完整展示后才算进入"（与 main 中的 sleep 配合）
+      await sleep(900);
     }
 
     /* ============ 首页背景图轮播 ============ */
     (function () {
       const bg = document.getElementById('bgLayer');
-      if (!BG_IMAGES.length) return;          // 空数组则保持渐变
+      if (!BG_IMAGES.length) return;
       bg.style.backgroundImage = `url("${BG_IMAGES[0]}")`;
       if (BG_IMAGES.length > 1) {
         let i = 0;
@@ -356,8 +620,7 @@
     /* ============ 简介页背景图 ============ */
     (function () {
       const profile = document.getElementById('stageProfile');
-      if (!PROFILE_BG) return;                // 留空则用默认渐变
-      // 图片上层叠加半透明白雾，保证文字清晰
+      if (!PROFILE_BG) return;
       profile.style.backgroundImage = `
         linear-gradient(135deg, rgba(238,242,255,0.55), rgba(253,242,248,0.55)),
         url("${PROFILE_BG}")
@@ -371,7 +634,7 @@
     (function () {
       const img = document.getElementById('avatarImg');
       const fallback = document.getElementById('avatarFallback');
-      if (!AVATAR_URL) {                      // 留空则显示默认占位圆
+      if (!AVATAR_URL) {
         img.style.display = 'none';
         fallback.style.display = 'block';
         return;
@@ -381,10 +644,58 @@
       fallback.style.display = 'none';
     })();
 
-    /* ============ 5秒后显示"按下继续"提示 ============ */
-    setTimeout(() => {
-      document.getElementById('continueHint').classList.add('show');
-    }, 5000);
+    /* ============ 动态列表（时间线）渲染 ============ */
+    /*
+     * 把 DYNAMICS 数组渲染成 .news-list，插到卡片的 .news-mount 节点里。
+     * 每条 item 错落入场（stagger），配合卡片展开动画一起浮现。
+     */
+    function renderDynamics() {
+      const mount = document.getElementById('newsMount');
+      if (!mount) return;
+      if (!DYNAMICS || !DYNAMICS.length) { mount.style.display = 'none'; return; }
+
+      const frag = document.createDocumentFragment();
+      DYNAMICS.forEach((item, idx) => {
+        const li = document.createElement('li');
+        li.className = 'news-item' + (item.link ? ' has-link' : '');
+        li.style.opacity = '0';
+        li.style.transform = 'translateY(12px)';
+        li.style.transition = 'opacity 0.45s ease, transform 0.45s cubic-bezier(0.68,-0.55,0.27,1.55)';
+        li.style.transitionDelay = (idx * 0.12) + 's';  // 逐条错落
+
+        // 有 link 则整条可点击跳转
+        if (item.link) li.onclick = () => window.open(item.link, '_blank', 'noopener');
+
+        li.innerHTML = `
+          <span class="news-date">${item.date}</span>
+          <span class="news-text">
+            <span class="news-title">${item.text}</span>
+            ${item.tag ? `<span class="news-tag">${item.tag}</span>` : ''}
+          </span>
+        `;
+        frag.appendChild(li);
+      });
+      mount.appendChild(frag);
+
+      // 下一帧再显示，触发过渡动画
+      requestAnimationFrame(() => {
+        mount.querySelectorAll('.news-item').forEach(el => {
+          el.style.opacity = '1';
+          el.style.transform = 'translateY(0)';
+        });
+      });
+    }
+
+    /* ============ 主流程：开场打字 → 预加载背景图 → 等待开场完整展示 → 自动进入 ============ */
+    (async function main() {
+      // 关键：bootSequence 是 async，await 它即保证整段开场动画彻底展示完才继续
+      const bootDone   = bootSequence();   // 启动打字（返回 Promise）
+      const imgLoaded  = preloadImage(PROFILE_BG);
+
+      await Promise.all([bootDone, imgLoaded]);  // 两者都就绪
+      await sleep(600);   // 额外停留，让用户看清 "Ready." 结尾
+      await enterProfile(); // 等待圆形扩散动画完整展示后才进入主页
+    })();
   </script>
 </body>
 </html>
