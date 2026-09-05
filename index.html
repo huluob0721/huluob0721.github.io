@@ -255,6 +255,15 @@
     .stage-profile.open .profile-card {
       opacity: 1;
       transform: scale(1) translateY(0);
+      /* 弹窗打开时通过 .blurred 触发虚化；过渡由下方 transition 完成 */
+      transition: opacity 0.6s cubic-bezier(0.68, -0.55, 0.27, 1.55) 0.4s,
+                  transform 0.6s cubic-bezier(0.68, -0.55, 0.27, 1.55) 0.4s,
+                  filter 0.4s ease;
+    }
+    /* 弹窗打开时：背景卡片轻微虚化 + 略微缩小，营造景深（与弹窗毛玻璃呼应） */
+    .profile-card.blurred {
+      filter: blur(3px);
+      transform: scale(0.98) translateY(0);
     }
 
     /* 头像（自定义图片，接口见 AVATAR_URL） */
@@ -381,6 +390,127 @@
       margin-top: 5px;
       font-weight: 600;
     }
+
+    /* ============ 动态详情弹窗 ============ */
+    /* 全屏遮罩：默认隐藏，显示时淡入 + 背景模糊（与简介毛玻璃统一） */
+    .modal-mask {
+      position: fixed;
+      inset: 0;
+      z-index: 500;
+      background: rgba(15, 23, 42, 0.35);
+      backdrop-filter: blur(8px) saturate(140%);
+      -webkit-backdrop-filter: blur(8px) saturate(140%);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.35s ease;
+    }
+    .modal-mask.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    /*
+     * 弹窗主体：与简介卡片(.profile-card)统一的亚克力毛玻璃风格
+     *   - 背景/边框/模糊度一致 → 视觉同源
+     *   - 弹出动画：从下方偏移 + 缩小 → 上移还原 + 微微"弹"一下（cubic-bezier 回弹）
+     */
+    .modal {
+      position: fixed;
+      z-index: 501;
+      left: 50%;
+      top: 50%;
+      width: 90%;
+      max-width: 520px;
+      max-height: 80vh;
+      overflow-y: auto;
+      /* 与简介卡片一致的亚克力质感 */
+      background: rgba(255, 255, 255, 0.42);
+      backdrop-filter: blur(22px) saturate(165%);
+      -webkit-backdrop-filter: blur(22px) saturate(165%);
+      border-radius: 24px;
+      border: 1px solid rgba(255, 255, 255, 0.7);
+      box-shadow:
+        0 12px 40px rgba(31, 38, 135, 0.22),
+        inset 0 1px 0 rgba(255, 255, 255, 0.8);
+      padding: 38px 34px 30px;
+      /* 初始状态：居中偏下 + 缩小，配合 .show 做弹出 + 弹性缩放 */
+      transform: translate(-50%, calc(-50% + 44px)) scale(0.9);
+      opacity: 0;
+      pointer-events: none;
+      transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
+                  opacity 0.32s ease;
+      font-family: 'Source Han Sans CN', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    }
+    /* 显示：还原位置 + 放大到 1（弹性缩放回弹，营造"弹"一下） */
+    .modal.show {
+      transform: translate(-50%, -50%) scale(1);
+      opacity: 1;
+      pointer-events: auto;
+    }
+    /* 弹窗滚动条美化 */
+    .modal::-webkit-scrollbar { width: 6px; }
+    .modal::-webkit-scrollbar-thumb { background: rgba(102,126,234,0.4); border-radius: 3px; }
+
+    /* 右上角关闭按钮 X：圆形玻璃按钮，与整体毛玻璃统一 */
+    .modal-close {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, 0.8);
+      background: rgba(255, 255, 255, 0.45);
+      backdrop-filter: blur(12px) saturate(160%);
+      -webkit-backdrop-filter: blur(12px) saturate(160%);
+      color: #4338ca;
+      font-size: 18px;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 8px rgba(31, 38, 135, 0.12);
+      /* 旋转动画过渡：悬停旋转，离开还原 */
+      transition: transform 0.3s ease, background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+    }
+    /* 鼠标移到 X 上：旋转 90° + 高亮 */
+    .modal-close:hover {
+      transform: rotate(90deg);
+      background: rgba(255, 255, 255, 0.9);
+      color: #be185d;
+      box-shadow: 0 4px 14px rgba(190, 24, 93, 0.25);
+    }
+    /* 按下时还原旋转（点击反馈），松开后由 :hover 维持旋转态 */
+    .modal-close:active { transform: rotate(0deg) scale(0.92); }
+
+    /* 弹窗内容样式 */
+    .modal-date {
+      display: inline-block;
+      font-size: 12px;
+      font-weight: 700;
+      color: #667eea;
+      background: rgba(102,126,234,0.12);
+      padding: 4px 10px;
+      border-radius: 8px;
+      margin-bottom: 12px;
+    }
+    .modal-title {
+      font-family: 'ZCOOL KuaiLe', 'Source Han Sans CN', sans-serif;
+      font-size: 24px;
+      color: #1e293b;
+      margin: 0 0 18px;
+      padding-right: 40px;  /* 给 X 按钮留位 */
+      line-height: 1.4;
+    }
+    .modal-body { text-align: left; }
+    .modal-body p {
+      font-size: 15px;
+      color: #475569;
+      line-height: 1.9;
+      margin: 0 0 14px;
+      cursor: none;  /* 保持自定义鼠标 */
+    }
+    .modal-body p:last-child { margin-bottom: 0; }
   </style>
 </head>
 <body>
@@ -423,6 +553,15 @@
     </div>
   </div>
 
+  <!-- 动态详情弹窗：默认隐藏，点击动态列表项时弹出 -->
+  <div class="modal-mask" id="modalMask"></div>
+  <div class="modal" id="modal" role="dialog" aria-modal="true">
+    <button class="modal-close" id="modalClose" aria-label="关闭">✕</button>
+    <span class="modal-date" id="modalDate"></span>
+    <h3 class="modal-title" id="modalTitle"></h3>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+
   <script>
     /* ============ 配置接口（按需修改）============ */
     const BG_IMAGES   = [];                                 // 首页背景图轮播，留空则保持渐变
@@ -438,9 +577,24 @@
      * - link(可选): 填写后整条可点击跳转
      */
     const DYNAMICS = [
-      { date: '2026.09.05', text: '博客上线啦 🎉',                       tag: '新' },
-      { date: '2026.09.01', text: '开学了，高一加油 💪' },
-      { date: '2026.08.31', text: '学会用 GitHub Pages 搭网站 🌐' },
+      { date: '2026.09.05', text: '博客上线啦 🎉', tag: '新',
+        detail: [
+          '折腾了好几天，个人博客终于正式上线啦！',
+          '基于 GitHub Pages 搭建，零服务器成本，提交即部署。',
+          '后面会慢慢把学习笔记、折腾记录都整理到这里，欢迎常来逛逛～',
+        ] },
+      { date: '2026.09.01', text: '开学了，高一加油 💪',
+        detail: [
+          '新学期新开始，正式成为一名高一学生。',
+          '课程难度上了一个台阶，尤其是数理化，得调整好学习节奏。',
+          '目标：把编程当成长线爱好坚持下去，同时不落下课内成绩。',
+        ] },
+      { date: '2026.08.31', text: '学会用 GitHub Pages 搭网站 🌐',
+        detail: [
+          '第一次接触 GitHub Pages，发现搭静态网站居然这么简单。',
+          '流程大概是：建仓库 → 上传 HTML → 开启 Pages 功能 → 绑定域名（可选）。',
+          '还顺便学会了用自定义域名 + CDN 加速，国内访问也挺快。',
+        ] },
     ];
 
     /* ============ 自定义鼠标跟随 + 尾拖粒子 ============ */
@@ -657,14 +811,14 @@
       const frag = document.createDocumentFragment();
       DYNAMICS.forEach((item, idx) => {
         const li = document.createElement('li');
-        li.className = 'news-item' + (item.link ? ' has-link' : '');
+        li.className = 'news-item has-detail';  // 有详情，整条可点击
         li.style.opacity = '0';
         li.style.transform = 'translateY(12px)';
         li.style.transition = 'opacity 0.45s ease, transform 0.45s cubic-bezier(0.68,-0.55,0.27,1.55)';
         li.style.transitionDelay = (idx * 0.12) + 's';  // 逐条错落
 
-        // 有 link 则整条可点击跳转
-        if (item.link) li.onclick = () => window.open(item.link, '_blank', 'noopener');
+        // 点击整条 → 打开详情弹窗
+        li.onclick = () => openModal(idx);
 
         li.innerHTML = `
           <span class="news-date">${item.date}</span>
@@ -685,6 +839,46 @@
         });
       });
     }
+
+    /* ============ 动态详情弹窗逻辑 ============ */
+    const modal       = document.getElementById('modal');
+    const modalMask   = document.getElementById('modalMask');
+    const modalClose  = document.getElementById('modalClose');
+    const modalDate   = document.getElementById('modalDate');
+    const modalTitle  = document.getElementById('modalTitle');
+    const modalBody   = document.getElementById('modalBody');
+
+    // 打开弹窗：填充内容 → 加 .show 触发弹出动画（遮罩淡入 + 弹窗上移还原 + 弹性缩放）
+    //          同时给背景卡片加 .blurred，营造景深虚化
+    function openModal(index) {
+      const item = DYNAMICS[index];
+      if (!item) return;
+      modalDate.textContent  = item.date;
+      modalTitle.textContent = item.text;
+      // detail 为多段落数组，逐段生成 <p>（无 detail 时退化为单行文本）
+      modalBody.innerHTML = (item.detail && item.detail.length)
+        ? item.detail.map(p => `<p>${p}</p>`).join('')
+        : `<p>${item.text}</p>`;
+      modalMask.classList.add('show');
+      modal.classList.add('show');
+      document.querySelector('.profile-card').classList.add('blurred');
+    }
+
+    // 关闭弹窗：移除 .show，动画由 CSS transition 完成；同时还原背景卡片虚化
+    function closeModal() {
+      modalMask.classList.remove('show');
+      modal.classList.remove('show');
+      document.querySelector('.profile-card').classList.remove('blurred');
+    }
+
+    // X 按钮点击关闭；CSS 已处理 mouseenter 旋转 / mouseleave 还原
+    modalClose.addEventListener('click', closeModal);
+    // 点击遮罩（弹窗外部）也关闭
+    modalMask.addEventListener('click', closeModal);
+    // 按 Esc 键关闭
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && modal.classList.contains('show')) closeModal();
+    });
 
     /* ============ 主流程：开场打字 → 预加载背景图 → 等待开场完整展示 → 自动进入 ============ */
     (async function main() {
