@@ -183,17 +183,25 @@
       transform: scale(1) translateY(0);
     }
 
+    /* 头像图片 */
     .avatar {
+      width: 84px;
+      height: 84px;
+      border-radius: 50%;
+      object-fit: cover;
+      margin: 0 auto 20px;
+      display: none;
+      border: 3px solid rgba(255,255,255,0.8);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    }
+
+    /* 默认占位圆 */
+    .avatar-fallback {
       width: 84px;
       height: 84px;
       border-radius: 50%;
       background: linear-gradient(135deg, #667eea, #764ba2);
       margin: 0 auto 20px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 38px;
-      color: #fff;
     }
 
     .profile-card h2 {
@@ -249,12 +257,13 @@
 
   <div class="stage-profile" id="stageProfile">
     <div class="profile-card">
-      <div class="avatar">🥕</div>
+      <img class="avatar" id="avatarImg" alt="avatar">
+      <div class="avatar-fallback" id="avatarFallback"></div>
       <h2>胡萝卜</h2>
       <p class="subtitle">一名对电脑感兴趣的学生</p>
       <div class="bio">
         <p>你好！我是一名来自上海市的高一学生，目前就读于上海市第二中学本部</p>
-        <p>兴趣爱好有：编程，看动漫，运动，打游戏</p>
+        <p>兴趣爱好有：编程，运动，打游戏</p>
       </div>
     </div>
   </div>
@@ -342,7 +351,7 @@
       }
     })();
 
-    // ===== 简介页背景图接口（https 链接）=====
+    // ===== 简介页背景图接口 =====
     const PROFILE_BG = 'https://raw.githubusercontent.com/huluob0721/huluob0721.github.io/main/Background.png';
 
     (function () {
@@ -356,6 +365,22 @@
       profile.style.backgroundSize = 'cover, cover';
       profile.style.backgroundPosition = 'center, center';
       profile.style.backgroundRepeat = 'no-repeat, no-repeat';
+    })();
+
+    // ===== 头像图片接口 =====
+    const AVATAR_URL = 'https://raw.githubusercontent.com/huluob0721/huluob0721.github.io/main/Profile_Picture.png'; // 填你的头像 https 链接，留空显示默认渐变圆
+
+    (function () {
+      const img = document.getElementById('avatarImg');
+      const fallback = document.getElementById('avatarFallback');
+      if (!AVATAR_URL) {
+        img.style.display = 'none';
+        fallback.style.display = 'block';
+        return;
+      }
+      img.src = AVATAR_URL;
+      img.style.display = 'block';
+      fallback.style.display = 'none';
     })();
 
     setTimeout(() => {
