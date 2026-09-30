@@ -52,7 +52,10 @@
     .q-arrow {
       position: fixed; width: 28px; height: 28px;
       pointer-events: none; z-index: 10000;
+      transition: opacity 0.12s ease;
     }
+    /* 鼠标进入 iframe（Giscus）时交给 iframe 内部的原生 cursor，避免双箭头 */
+    .q-arrow.in-frame { opacity: 0; }
     .q-arrow::before {
       content: '';
       position: absolute; inset: 0;
@@ -436,83 +439,6 @@
     }
     .giscus-tip a { color: #4338ca; }
 
-    .board-form {
-      display: flex; flex-direction: column; gap: 8px;
-      margin-bottom: 14px;
-    }
-    .board-form input,
-    .board-form textarea {
-      width: 100%; box-sizing: border-box;
-      font-family: inherit; font-size: 13px; color: #0f172a;
-      background: var(--glass-bg);
-      border: 1px solid var(--glass-border);
-      border-radius: 12px;
-      padding: 10px 12px;
-      outline: none;
-      resize: none;
-      -webkit-user-select: text; user-select: text;
-      transition: background 0.2s ease, border-color 0.2s ease;
-    }
-    .board-form textarea { min-height: 74px; line-height: 1.6; }
-    .board-form input::placeholder,
-    .board-form textarea::placeholder { color: #7c8aa5; }
-    .board-form input:focus,
-    .board-form textarea:focus {
-      background: var(--glass-bg-hover);
-      border-color: rgba(102,126,234,0.7);
-    }
-    .board-actions {
-      display: flex; align-items: center; justify-content: space-between;
-      gap: 10px;
-    }
-    .board-count { font-size: 11px; color: #64748b; font-weight: 600; }
-    .board-submit {
-      border: 1px solid rgba(255,255,255,0.75);
-      background: linear-gradient(135deg, rgba(102,126,234,0.9), rgba(118,75,162,0.9));
-      color: #fff; font-family: inherit; font-size: 13px; font-weight: 600;
-      padding: 8px 20px; border-radius: 999px;
-      transition: transform 0.18s ease, box-shadow 0.2s ease, opacity 0.2s ease;
-      box-shadow: 0 4px 14px rgba(102,126,234,0.35);
-    }
-    .board-submit:hover { transform: translateY(-2px); box-shadow: 0 7px 18px rgba(102,126,234,0.45); }
-    .board-submit:active { transform: translateY(0) scale(0.96); }
-    .board-submit:disabled { opacity: 0.45; box-shadow: none; transform: none; }
-
-    .msg-item {
-      display: flex; align-items: flex-start; gap: 10px;
-      padding: 10px 12px; border-radius: 12px;
-      background: var(--glass-bg);
-      backdrop-filter: blur(3px);
-      -webkit-backdrop-filter: blur(3px);
-      border: 1px solid var(--glass-border);
-      text-align: left;
-    }
-    .msg-avatar {
-      flex-shrink: 0; width: 30px; height: 30px; border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      color: #fff; font-size: 12px; font-weight: 700;
-      background: linear-gradient(135deg, #667eea, #764ba2);
-    }
-    .msg-main { flex: 1; min-width: 0; }
-    .msg-head {
-      display: flex; align-items: baseline; gap: 8px;
-      font-size: 12px; font-weight: 700; color: #312e81;
-    }
-    .msg-time { font-size: 10.5px; color: #7c8aa5; font-weight: 500; }
-    .msg-text {
-      font-size: 12.5px; color: #334155; line-height: 1.7; margin-top: 3px;
-      word-break: break-word; white-space: pre-wrap;
-      -webkit-user-select: text; user-select: text;
-    }
-    .msg-del {
-      flex-shrink: 0; border: none; background: transparent;
-      color: #94a3b8; font-size: 14px; line-height: 1;
-      padding: 2px 4px; border-radius: 6px;
-      opacity: 0; transition: opacity 0.18s ease, color 0.18s ease;
-    }
-    .msg-item:hover .msg-del { opacity: 1; }
-    .msg-del:hover { color: #be185d; }
-
     /* ============ 自定义滚动条 ============
        原生滚动条属于浏览器控件，鼠标在上面拖动时不会向页面派发 mousemove，
        自定义指针就会卡住。所以这里换成用 DOM 画的滚动条，事件完全可控。 */
@@ -617,19 +543,6 @@
             <div class="section-title">💬 留言板<span class="section-hint" id="boardHint"></span></div>
             <div class="giscus-host" id="giscusHost"></div>
             <div class="giscus-tip" id="giscusTip" hidden></div>
-
-            <!-- 未配置 Giscus 时的本地兜底（仅自己可见） -->
-            <div id="localBoard">
-              <form class="board-form" id="boardForm" autocomplete="off">
-                <input id="boardName" type="text" maxlength="16" placeholder="昵称（可留空）">
-                <textarea id="boardText" maxlength="200" placeholder="随便写点什么吧…"></textarea>
-                <div class="board-actions">
-                  <span class="board-count" id="boardCount">0 / 200</span>
-                  <button class="board-submit" id="boardSubmit" type="submit" disabled>留个言</button>
-                </div>
-              </form>
-              <ul class="entry-list" id="boardMount"></ul>
-            </div>
           </div>
         </section>
 
@@ -663,7 +576,7 @@
           // 尽力补渲染列表：只在列表还空着时才渲染，避免重复插入
           var pairs = [
             ['animeMount', 'renderAnime'], ['gameMount', 'renderGames'],
-            ['boardMount', 'renderBoard'], ['newsMount', 'renderDynamics']
+            ['newsMount', 'renderDynamics']
           ];
           pairs.forEach(function (p) {
             var el = document.getElementById(p[0]);
@@ -790,6 +703,7 @@
     }
     document.addEventListener('mousemove', (e) => {
       moveArrow(e.clientX, e.clientY);
+      syncArrowOverFrame(e.clientX, e.clientY);
       createParticle(e.clientX, e.clientY);
     });
     function createParticle(x, y) {
@@ -803,13 +717,37 @@
       setTimeout(() => p.remove(), 800);
     }
     /* 悬停反馈：原有 h1/p 之外，补上导航与列表项（事件委托，动态节点同样生效） */
-    const HOVER_SELECTOR = 'h1, p, .nav-link, .entry-item, .msg-item, .news-item, .modal-close, .board-submit';
+    const HOVER_SELECTOR = 'h1, p, .nav-link, .entry-item, .news-item, .modal-close';
     document.addEventListener('mouseover', (e) => {
       if (e.target.closest && e.target.closest(HOVER_SELECTOR)) qArrow.classList.add('hover');
     });
     document.addEventListener('mouseout', (e) => {
       if (e.target.closest && e.target.closest(HOVER_SELECTOR)) qArrow.classList.remove('hover');
     });
+
+    /* ============ 让自定义箭头"穿过" iframe（Giscus 留言区）============
+       浏览器规则：鼠标一旦进入 iframe，父文档就彻底收不到事件
+       （mousemove / mouseover / mouseout / :hover 全部失效），
+       所以 JS 画的箭头会僵在 iframe 边界外，看起来像"进不去"。
+       两边配合解决：
+         1. iframe 内部 —— 靠 giscus-theme.css 把 cursor 换成同一支箭头的 SVG，
+            由浏览器原生绘制，零延迟、完全跟手；
+         2. 父文档 —— 用"坐标是否落在 iframe 矩形内"判断，
+            在帧内时淡出 JS 箭头，避免同时出现两个箭头。
+            鼠标一离开 iframe 回到页面，mousemove 立刻恢复箭头。 */
+    const ARROW_IN_FRAME = 'in-frame';
+    function syncArrowOverFrame(x, y) {
+      let over = false;
+      const f = document.querySelector('#giscusHost iframe');
+      if (f) {
+        const r = f.getBoundingClientRect();
+        if (r.width > 0 && r.height > 0) {
+          over = x >= r.left - 2 && x <= r.right + 2 && y >= r.top - 2 && y <= r.bottom + 2;
+        }
+      }
+      qArrow.classList.toggle(ARROW_IN_FRAME, over);
+    }
+    window.addEventListener('blur', () => qArrow.classList.remove(ARROW_IN_FRAME));
 
     const HEART_COLORS = ['#ff6b81', '#ff4757', '#ff3838', '#ff9ff3', '#f368e0', '#ee5a24'];
     document.addEventListener('click', (e) => {
@@ -1068,7 +1006,6 @@
       setupCustomScroll(document.getElementById('newsMount'));
       setupCustomScroll(document.getElementById('animeMount'));
       setupCustomScroll(document.getElementById('gameMount'));
-      setupCustomScroll(document.getElementById('boardMount'));
       setupCustomScroll(modal, () => modal.classList.contains('show'));
       setupCustomScroll(stage,  () => stage.classList.contains('open'));
 
@@ -1083,7 +1020,7 @@
           syncScrollbarsFor(320);
         });
         ro.observe(pagesWrap);
-        ['newsMount', 'animeMount', 'gameMount', 'boardMount', 'modal'].forEach(id => {
+        ['newsMount', 'animeMount', 'gameMount', 'modal'].forEach(id => {
           const n = document.getElementById(id);
           if (n) ro.observe(n);
         });
@@ -1135,7 +1072,6 @@
       try { renderDynamics(); } catch (e) { console.warn('renderDynamics:', e); }
       try { renderAnime(); } catch (e) { console.warn('renderAnime:', e); }
       try { renderGames(); } catch (e) { console.warn('renderGames:', e); }
-      try { renderBoard(); } catch (e) { console.warn('renderBoard:', e); }
       syncPagesHeight(currentPage);
       profile.classList.add('open');
       qArrow.classList.add('on-profile');
@@ -1335,135 +1271,6 @@
       });
     }
 
-    /* ============ 留言板（保存在浏览器本地 localStorage） ============ */
-    const BOARD_KEY = 'huluob_board_v1';
-    const BOARD_MAX = 60;
-
-    function loadBoard() {
-      try {
-        const raw = localStorage.getItem(BOARD_KEY);
-        const arr = raw ? JSON.parse(raw) : [];
-        return Array.isArray(arr) ? arr : [];
-      } catch (e) { return []; }   // 隐私模式 / JSON 损坏时当作空
-    }
-    function saveBoard(list) {
-      try { localStorage.setItem(BOARD_KEY, JSON.stringify(list)); return true; }
-      catch (e) { return false; }
-    }
-
-    function fmtTime(ts) {
-      const d = new Date(ts);
-      const p = (n) => String(n).padStart(2, '0');
-      return `${d.getFullYear()}.${p(d.getMonth() + 1)}.${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
-    }
-
-    function renderBoard() {
-      const mount = document.getElementById('boardMount');
-      if (!mount) return;
-      const list = loadBoard();
-      const hint = document.getElementById('boardHint');
-
-      mount.innerHTML = '';
-      mount.style.display = '';
-
-      if (!list.length) {
-        mount.innerHTML = `<li class="entry-empty">还没有留言，来当第一个吧～<br><span style="font-size:11px">（留言只保存在你自己的浏览器里）</span></li>`;
-        if (hint) hint.textContent = '';
-        refreshScrollbars();
-        return;
-      }
-
-      if (hint) hint.textContent = `${list.length} 条 · 仅本地保存`;
-
-      // 新的在最上面
-      list.slice().reverse().forEach((m, idx) => {
-        const li = document.createElement('li');
-        li.className = 'msg-item';
-        li.style.opacity = '0';
-        li.style.transform = 'translateY(10px)';
-        li.style.transition = 'opacity 0.4s ease, transform 0.4s cubic-bezier(0.68,-0.55,0.27,1.55)';
-        li.style.transitionDelay = (idx * 0.06) + 's';
-        li.dataset.id = m.id;
-        li.innerHTML = `
-          <div class="msg-avatar">${esc((m.name || '匿名').charAt(0))}</div>
-          <div class="msg-main">
-            <div class="msg-head">${esc(m.name || '匿名')}<span class="msg-time">${esc(fmtTime(m.time))}</span></div>
-            <div class="msg-text">${esc(m.text)}</div>
-          </div>
-          <button class="msg-del" type="button" title="删除" aria-label="删除">✕</button>`;
-        mount.appendChild(li);
-      });
-
-      requestAnimationFrame(() => {
-        mount.querySelectorAll('.msg-item').forEach(el => {
-          el.style.opacity = '1'; el.style.transform = 'translateY(0)';
-        });
-        refreshScrollbars();
-      });
-      refreshScrollbars();
-    }
-
-    (function initBoard() {
-      const form   = document.getElementById('boardForm');
-      const nameEl = document.getElementById('boardName');
-      const textEl = document.getElementById('boardText');
-      const countEl = document.getElementById('boardCount');
-      const submitEl = document.getElementById('boardSubmit');
-      if (!form) return;
-
-      function syncState() {
-        const len = textEl.value.trim().length;
-        countEl.textContent = `${textEl.value.length} / 200`;
-        submitEl.disabled = len === 0;
-      }
-
-      textEl.addEventListener('input', syncState);
-      // Ctrl / Cmd + Enter 提交
-      textEl.addEventListener('keydown', (e) => {
-        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-          e.preventDefault();
-          form.requestSubmit ? form.requestSubmit() : form.dispatchEvent(new Event('submit'));
-        }
-      });
-
-      form.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const text = textEl.value.trim();
-        if (!text) return;
-        const list = loadBoard();
-        list.push({
-          id: Date.now() + '-' + Math.random().toString(36).slice(2, 7),
-          name: (nameEl.value.trim() || '匿名').slice(0, 16),
-          text: text.slice(0, 200),
-          time: Date.now(),
-        });
-        while (list.length > BOARD_MAX) list.shift();
-        const okSaved = saveBoard(list);
-        textEl.value = '';
-        syncState();
-        renderBoard();
-        syncPagesHeight(currentPage);
-        if (!okSaved) {
-          const h = document.getElementById('boardHint');
-          if (h) h.textContent = '浏览器不允许保存';
-        }
-      });
-
-      // 删除（事件委托）
-      document.getElementById('boardMount').addEventListener('click', (e) => {
-        const btn = e.target.closest('.msg-del');
-        if (!btn) return;
-        const li = btn.closest('.msg-item');
-        if (!li) return;
-        const id = li.dataset.id;
-        saveBoard(loadBoard().filter(m => String(m.id) !== String(id)));
-        renderBoard();
-        syncPagesHeight(currentPage);
-      });
-
-      syncState();
-    })();
-
     /* ============ Giscus 公共留言板 ============
        留言存在 GitHub Discussions 里，所有人可见、可回复，不依赖任何服务器。
 
@@ -1493,16 +1300,18 @@
       mapping:    'number',
       term:       '1',        // ← Discussion #1（即 .../discussions/1）
 
-      theme:      'preferred_color_scheme',   // 跟随系统深浅色
+      /* theme：可以是内置主题名，也可以是一个 CSS 文件的网址。
+         这里用的是仓库里的 giscus-theme.css —— 亮色、紫蓝主色，和网站一致，
+         并且把鼠标指针换成了本站那支箭头（iframe 内部也能用自定义指针）。
+         ⚠️ 必须把 giscus-theme.css 一起上传到仓库根目录，否则留言区会没样式。
+         不想用自定义主题的话，把下面这行改成：theme: 'light'  */
+      theme:      'https://huluob0721.github.io/giscus-theme.css',
     };
 
     let giscusMounted = false;
 
-    /* Giscus 在本地是跑不起来的，必须部署到线上域名：
-       - file:// 打开时 origin 是 "file://"，giscus 服务器会直接拒绝
-       - data-mapping 用的是 pathname，本地路径是 /C:/xxx/index.html 这种，
-         匹配不到（也建不出）对应的 discussion
-       所以本地预览时直接回退到本地留言板，别让用户看到那个红色报错图标。 */
+    /* Giscus 在本地跑不起来（file:// 的 origin 会被服务器拒绝），
+       所以本地预览时不加载，只给一条说明 + GitHub 讨论区直链。 */
     function isDeployedSite() {
       try {
         if (location.protocol === 'file:') return false;
@@ -1514,41 +1323,39 @@
       } catch (e) { return false; }
     }
 
+    function showBoardTip(tip, hint, html, hintText) {
+      if (tip) { tip.hidden = false; tip.innerHTML = html; }
+      if (hint) hint.textContent = hintText || '';
+      syncPagesHeight('board');
+    }
+
+    const DISCUSS_URL = `https://github.com/${GISCUS.repo || ''}/discussions`;
+
     function mountGiscus() {
       if (giscusMounted) return false;
       const host = document.getElementById('giscusHost');
-      const local = document.getElementById('localBoard');
       const tip = document.getElementById('giscusTip');
       const hint = document.getElementById('boardHint');
       if (!host) return false;
 
-      // 还没填配置 → 继续用本地留言板
+      // 配置没填全
       if (!GISCUS.repo || !GISCUS.repoId || !GISCUS.categoryId ||
           ((GISCUS.mapping === 'number' || GISCUS.mapping === 'specific') && !GISCUS.term)) {
-        if (local) local.hidden = false;
-        if (tip) {
-          tip.hidden = false;
-          tip.innerHTML = '当前是<b>本地留言板</b>（只有你自己能看到）。<br>' +
-            '想让所有人都能留言，去脚本里填好 GISCUS 配置即可。';
-        }
-        if (hint) hint.textContent = '仅本地保存';
+        showBoardTip(tip, hint,
+          '留言板还没配置好，去脚本里填好 <b>GISCUS</b> 那几项即可。', '未配置');
         return false;
       }
 
-      // 本地预览（file:// 或 localhost）→ Giscus 用不了，回退到本地留言板
+      // 本地预览：Giscus 用不了，给个直链
       if (!isDeployedSite()) {
-        if (local) local.hidden = false;
-        if (tip) {
-          tip.hidden = false;
-          tip.innerHTML = '现在是<b>本地预览</b>，Giscus 留言板需要部署到线上域名才能加载。<br>' +
-            '先临时使用下面的本地留言板，上传到 GitHub Pages 后会自动切换成公共留言板。';
-        }
-        if (hint) hint.textContent = '本地预览 · 仅自己可见';
+        showBoardTip(tip, hint,
+          '现在是<b>本地预览</b>，Giscus 留言板要部署到线上域名才会加载。<br>' +
+          `上传到 GitHub Pages 后这里就会显示留言区，现在可以先<a href="${DISCUSS_URL}" target="_blank" rel="noopener">去 GitHub 讨论区</a>看看。`,
+          '本地预览');
         return false;
       }
 
       giscusMounted = true;
-      if (local) local.hidden = true;          // 有公共留言板就隐藏本地版
       if (hint) hint.textContent = '由 GitHub 提供 · 需登录才能留言';
 
       const s = document.createElement('script');
@@ -1579,11 +1386,11 @@
 
       // 网络不通 / 配置错误时给个提示，不至于永远空白
       setTimeout(() => {
-        if (!host.querySelector('iframe') && tip) {
-          tip.hidden = false;
-          tip.innerHTML = '留言加载失败，可能是网络问题。<br>' +
-            `也可以<a href="https://github.com/${GISCUS.repo}/discussions" target="_blank" rel="noopener">直接去 GitHub 讨论区</a>留言。`;
-          syncPagesHeight('board');
+        if (!host.querySelector('iframe')) {
+          showBoardTip(tip, hint,
+            '留言加载失败，可能是网络问题。<br>' +
+            `也可以<a href="${DISCUSS_URL}" target="_blank" rel="noopener">直接去 GitHub 讨论区</a>留言。`,
+            '加载失败');
         }
       }, 8000);
 
