@@ -421,7 +421,21 @@
       float: right; margin-top: 2px;
     }
 
-    /* ============ 留言板 ============ */
+    /* ============ 留言板（Giscus） ============ */
+    .giscus-host {
+      min-height: 60px;
+      /* Giscus 是 iframe，无法从外部改样式，只能靠 data-theme 控制配色 */
+    }
+    .giscus-host iframe { width: 100%; border: none; min-height: 340px; }
+    .giscus-tip {
+      font-size: 12px; color: #64748b; line-height: 1.8;
+      text-align: center; padding: 14px 10px;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 12px;
+    }
+    .giscus-tip a { color: #4338ca; }
+
     .board-form {
       display: flex; flex-direction: column; gap: 8px;
       margin-bottom: 14px;
@@ -584,7 +598,7 @@
         <!-- ============ 看过的番 ============ -->
         <section class="page" data-page="anime">
           <div class="news-section">
-            <div class="section-title">📺 看过的番<span class="section-hint" id="animeHint"></span></div>
+            <div class="section-title">📺 看过的番</div>
             <ul class="entry-list" id="animeMount"></ul>
           </div>
         </section>
@@ -592,24 +606,30 @@
         <!-- ============ 玩过的游戏 ============ -->
         <section class="page" data-page="game">
           <div class="news-section">
-            <div class="section-title">🎮 玩过的游戏<span class="section-hint" id="gameHint"></span></div>
+            <div class="section-title">🎮 玩过的游戏</div>
             <ul class="entry-list" id="gameMount"></ul>
           </div>
         </section>
 
-        <!-- ============ 留言板 ============ -->
+        <!-- ============ 留言板（Giscus：留言存进 GitHub Discussions，所有人可见） ============ -->
         <section class="page" data-page="board">
           <div class="news-section">
             <div class="section-title">💬 留言板<span class="section-hint" id="boardHint"></span></div>
-            <form class="board-form" id="boardForm" autocomplete="off">
-              <input id="boardName" type="text" maxlength="16" placeholder="昵称（可留空）">
-              <textarea id="boardText" maxlength="200" placeholder="随便写点什么吧…"></textarea>
-              <div class="board-actions">
-                <span class="board-count" id="boardCount">0 / 200</span>
-                <button class="board-submit" id="boardSubmit" type="submit" disabled>留个言</button>
-              </div>
-            </form>
-            <ul class="entry-list" id="boardMount"></ul>
+            <div class="giscus-host" id="giscusHost"></div>
+            <div class="giscus-tip" id="giscusTip" hidden></div>
+
+            <!-- 未配置 Giscus 时的本地兜底（仅自己可见） -->
+            <div id="localBoard">
+              <form class="board-form" id="boardForm" autocomplete="off">
+                <input id="boardName" type="text" maxlength="16" placeholder="昵称（可留空）">
+                <textarea id="boardText" maxlength="200" placeholder="随便写点什么吧…"></textarea>
+                <div class="board-actions">
+                  <span class="board-count" id="boardCount">0 / 200</span>
+                  <button class="board-submit" id="boardSubmit" type="submit" disabled>留个言</button>
+                </div>
+              </form>
+              <ul class="entry-list" id="boardMount"></ul>
+            </div>
           </div>
         </section>
 
@@ -715,10 +735,11 @@
         ] },
     ];
 
-    /* ============ 看过的番 ⚠️ 示例数据，替换成你自己的记录即可 ============
+    /* ============ 看过的番 ============
        cover  : 封面图链接，留空则显示渐变色块（用 color 作为主色）
        score  : 1~5 星
        status : 已看完 / 在看 / 弃番
+       想加新条目，照着下面任意一条复制一行改内容即可。
     */
     const ANIME = [
       { title: 'CLANNAD', year: '2007', score: 5, status: '已看完', color: '#667eea', cover: '',
@@ -735,10 +756,10 @@
         comment: 'SOS 团的日常，经典老番，God Knows神了！' },
     ];
 
-    /* ============ 玩过的游戏 ⚠️ 同样是示例数据 ============
+    /* ============ 玩过的游戏 ============
        cover  : 封面图链接，留空则显示渐变色块
        score  : 1~5 星
-       status : 已通关 / 在玩 / 弃坑
+       status : 已通关 / 在玩 / 弃坑 / 偶尔玩（写什么都行）
        hours  : 游玩时长（小时，可省略）
     */
     const GAMES = [
@@ -883,6 +904,7 @@
       setNavActive(name);
       pagesWrap.classList.add('animating');
       syncPagesHeight(name);
+      ensureBoardLoaded(name);      // 首次进留言板才去加载 Giscus
       // 卡片高度/位置在动画中一直在变，逐帧跟随，滚动条才不会错位
       syncScrollbarsFor(560);
 
@@ -1056,12 +1078,26 @@
 
       // 内容增删（留言、切页）导致尺寸变化时自动刷新
       if (window.ResizeObserver) {
-        const ro = new ResizeObserver(() => { syncScrollbarsFor(320); });
+        const ro = new ResizeObserver(() => {
+          syncPagesHeight(currentPage);   // Giscus 的 iframe 撑高后，卡片要跟着变
+          syncScrollbarsFor(320);
+        });
         ro.observe(pagesWrap);
         ['newsMount', 'animeMount', 'gameMount', 'boardMount', 'modal'].forEach(id => {
           const n = document.getElementById(id);
           if (n) ro.observe(n);
         });
+        // Giscus 容器：iframe 是异步插入且高度会变，必须单独盯住
+        const gh = document.getElementById('giscusHost');
+        if (gh) {
+          ro.observe(gh);
+          if (window.MutationObserver) {
+            new MutationObserver(() => {
+              syncPagesHeight(currentPage);
+              syncScrollbarsFor(320);
+            }).observe(gh, { childList: true, subtree: true });
+          }
+        }
       }
     })();
 
@@ -1084,6 +1120,7 @@
         }
         setNavActive(currentPage);
         safeHash(currentPage);
+        ensureBoardLoaded(currentPage);   // #board 直达时也要加载
       } catch (e) { console.warn('initPage:', e); }
     })();
 
@@ -1235,7 +1272,7 @@
       return '★'.repeat(n) + '☆'.repeat(5 - n);
     }
 
-    function renderEntries(mountId, hintId, list, opts) {
+    function renderEntries(mountId, list, opts) {
       opts = opts || {};
       const mount = document.getElementById(mountId);
       if (!mount) return;
@@ -1244,13 +1281,9 @@
 
       if (!list || !list.length) {
         mount.innerHTML = `<li class="entry-empty">${opts.empty || '还没有内容～'}</li>`;
-        if (hintId) { const h = document.getElementById(hintId); if (h) h.textContent = ''; }
         refreshScrollbars();
         return;
       }
-
-      const hint = hintId ? document.getElementById(hintId) : null;
-      if (hint && opts.hint) hint.textContent = opts.hint(list);
 
       const frag = document.createDocumentFragment();
       list.forEach((item, idx) => {
@@ -1290,22 +1323,15 @@
 
     /* ============ 看过的番 ============ */
     function renderAnime() {
-      renderEntries('animeMount', 'animeHint', ANIME, {
-        empty: '还没记录番剧，去脚本里的 ANIME 数组添加吧～',
-        hint: (list) => {
-          const rated = list.filter(a => a.score);
-          const avg = rated.reduce((s, a) => s + a.score, 0) / (rated.length || 1);
-        }
+      renderEntries('animeMount', ANIME, {
+        empty: '还没记录番剧，去脚本里的 ANIME 数组添加吧～'
       });
     }
 
     /* ============ 玩过的游戏 ============ */
     function renderGames() {
-      renderEntries('gameMount', 'gameHint', GAMES, {
-        empty: '还没记录游戏，去脚本里的 GAMES 数组添加吧～',
-        hint: (list) => {
-          const total = list.reduce((s, g) => s + (Number(g.hours) || 0), 0);
-        }
+      renderEntries('gameMount', GAMES, {
+        empty: '还没记录游戏，去脚本里的 GAMES 数组添加吧～'
       });
     }
 
@@ -1437,6 +1463,145 @@
 
       syncState();
     })();
+
+    /* ============ Giscus 公共留言板 ============
+       留言存在 GitHub Discussions 里，所有人可见、可回复，不依赖任何服务器。
+
+       ── 怎么拿到下面四个值（一次性操作，5 分钟搞定）──
+       1. 打开你的仓库 → Settings → 勾选 Features 里的 **Discussions**
+       2. 仓库里 Discussions → New category，名字随便（比如「留言板」），
+          类型选 **Announcement**（保证只有你和 giscus 能开新帖）
+       3. 去 https://github.com/apps/giscus 点 Install，装在你要用的仓库上
+       4. 打开 https://giscus.app/zh-CN ，在「仓库」里填 owner/repo
+          （你这里就是 huluob0721/huluob0721.github.io），
+          页面下方会自动生成 data-repo-id 和 data-category-id，复制过来即可
+
+       填好之后：留言需要登录 GitHub 才能发，没登录的人只能看。 */
+    const GISCUS = {
+      repo:       'huluob0721/huluob0721.github.io',
+      repoId:     'R_kgDOUIggbw',
+      category:   'Announcements',
+      categoryId: 'DIC_kwDOUIggb84DGvc-',
+
+      /* mapping 说明（很重要，选错了留言就对不上）：
+         pathname  → 按"页面路径"找讨论。你这站是单页，根路径的 term 会是 index，
+                     而你在 GitHub 上建的那条讨论标题是「留言板」，匹配不上，
+                     giscus 会另外新建一条，你原来那条就找不回来了。
+         number    → 直接按讨论编号加载，最稳，不受标题/域名影响 ✅ 当前用的就是这个
+         specific  → 按标题关键词找（term 填 '留言板'），也支持自动建帖
+         想换就改下面两行，并把 term 一起改掉。 */
+      mapping:    'number',
+      term:       '1',        // ← Discussion #1（即 .../discussions/1）
+
+      theme:      'preferred_color_scheme',   // 跟随系统深浅色
+    };
+
+    let giscusMounted = false;
+
+    /* Giscus 在本地是跑不起来的，必须部署到线上域名：
+       - file:// 打开时 origin 是 "file://"，giscus 服务器会直接拒绝
+       - data-mapping 用的是 pathname，本地路径是 /C:/xxx/index.html 这种，
+         匹配不到（也建不出）对应的 discussion
+       所以本地预览时直接回退到本地留言板，别让用户看到那个红色报错图标。 */
+    function isDeployedSite() {
+      try {
+        if (location.protocol === 'file:') return false;
+        const h = location.hostname;
+        if (!h) return false;
+        if (h === 'localhost' || h === '127.0.0.1' || h === '0.0.0.0') return false;
+        if (h.indexOf('192.168.') === 0 || h.indexOf('10.') === 0) return false;
+        return true;
+      } catch (e) { return false; }
+    }
+
+    function mountGiscus() {
+      if (giscusMounted) return false;
+      const host = document.getElementById('giscusHost');
+      const local = document.getElementById('localBoard');
+      const tip = document.getElementById('giscusTip');
+      const hint = document.getElementById('boardHint');
+      if (!host) return false;
+
+      // 还没填配置 → 继续用本地留言板
+      if (!GISCUS.repo || !GISCUS.repoId || !GISCUS.categoryId ||
+          ((GISCUS.mapping === 'number' || GISCUS.mapping === 'specific') && !GISCUS.term)) {
+        if (local) local.hidden = false;
+        if (tip) {
+          tip.hidden = false;
+          tip.innerHTML = '当前是<b>本地留言板</b>（只有你自己能看到）。<br>' +
+            '想让所有人都能留言，去脚本里填好 GISCUS 配置即可。';
+        }
+        if (hint) hint.textContent = '仅本地保存';
+        return false;
+      }
+
+      // 本地预览（file:// 或 localhost）→ Giscus 用不了，回退到本地留言板
+      if (!isDeployedSite()) {
+        if (local) local.hidden = false;
+        if (tip) {
+          tip.hidden = false;
+          tip.innerHTML = '现在是<b>本地预览</b>，Giscus 留言板需要部署到线上域名才能加载。<br>' +
+            '先临时使用下面的本地留言板，上传到 GitHub Pages 后会自动切换成公共留言板。';
+        }
+        if (hint) hint.textContent = '本地预览 · 仅自己可见';
+        return false;
+      }
+
+      giscusMounted = true;
+      if (local) local.hidden = true;          // 有公共留言板就隐藏本地版
+      if (hint) hint.textContent = '由 GitHub 提供 · 需登录才能留言';
+
+      const s = document.createElement('script');
+      s.src = 'https://giscus.app/client.js';
+      s.async = true;
+      s.crossOrigin = 'anonymous';
+      // 与 giscus.app 官网生成的参数保持一致
+      const attrs = {
+        'data-repo': GISCUS.repo,
+        'data-repo-id': GISCUS.repoId,
+        'data-category': GISCUS.category,
+        'data-category-id': GISCUS.categoryId,
+        'data-mapping': GISCUS.mapping,
+        'data-reactions-enabled': '1',
+        'data-emit-metadata': '0',
+        'data-input-position': 'bottom',
+        'data-theme': GISCUS.theme,
+        'data-lang': 'zh-CN',
+      };
+      // number / specific 必须配 data-term；data-strict 只对"按标题匹配"才有意义
+      if (GISCUS.mapping === 'number' || GISCUS.mapping === 'specific') {
+        attrs['data-term'] = GISCUS.term;
+      } else {
+        attrs['data-strict'] = '0';
+      }
+      Object.entries(attrs).forEach(([k, v]) => s.setAttribute(k, v));
+      host.appendChild(s);
+
+      // 网络不通 / 配置错误时给个提示，不至于永远空白
+      setTimeout(() => {
+        if (!host.querySelector('iframe') && tip) {
+          tip.hidden = false;
+          tip.innerHTML = '留言加载失败，可能是网络问题。<br>' +
+            `也可以<a href="https://github.com/${GISCUS.repo}/discussions" target="_blank" rel="noopener">直接去 GitHub 讨论区</a>留言。`;
+          syncPagesHeight('board');
+        }
+      }, 8000);
+
+      // Giscus 登录/发留言后高度会变，靠 postMessage 触发重新量高
+      window.addEventListener('message', (e) => {
+        if (!e || !e.origin || e.origin.indexOf('giscus') < 0) return;
+        syncPagesHeight(currentPage);
+        syncScrollbarsFor(320);
+      });
+      return true;
+    }
+
+    /* 首次切到留言板时才加载，避免一进站就多一个请求 */
+    function ensureBoardLoaded(name) {
+      if (name !== 'board') return;
+      mountGiscus();
+      syncPagesHeight('board');
+    }
 
     /* ============ 弹窗 ============ */
     const modal = document.getElementById('modal');
