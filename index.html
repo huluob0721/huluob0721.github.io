@@ -795,19 +795,34 @@
        （mousemove / mouseover / mouseout / :hover 全部失效），
        所以 JS 画的箭头会僵在 iframe 边界外，看起来像"进不去"。
        两边配合解决：
-         1. iframe 内部 —— 靠 giscus-theme.css 把 cursor 换成同一支箭头的 SVG，
+         1. iframe 内部 —— 靠 giscus-theme.css 把 cursor 换成同一支箭头（PNG），
             由浏览器原生绘制，零延迟、完全跟手；
-         2. 父文档 —— 用"坐标是否落在 iframe 矩形内"判断，
-            在帧内时淡出 JS 箭头，避免同时出现两个箭头。
-            鼠标一离开 iframe 回到页面，mousemove 立刻恢复箭头。 */
+         2. 父文档 —— 只在"真正看得见留言区的那块区域"里淡出 JS 箭头，
+            避免同时出现两个箭头。
+
+       ⚠️ 关键：必须用 iframe 与容器的**可见交集**来判定。
+       iframe 的实际高度是整份留言内容（可能 900px），而容器只有 288px 且可滚动，
+       getBoundingClientRect() 返回的是完整的 900px 矩形（不会因裁剪而缩短）。
+       直接拿它判断的话，留言区上方（标题栏）和下方都会被误判成"在帧内"，
+       箭头在那里被隐藏、又没有 iframe 的光标顶上，就成了"指针凭空消失"。 */
     const ARROW_IN_FRAME = 'in-frame';
     function syncArrowOverFrame(x, y) {
       let over = false;
-      const f = document.querySelector('#giscusHost iframe');
-      if (f) {
-        const r = f.getBoundingClientRect();
-        if (r.width > 0 && r.height > 0) {
-          over = x >= r.left - 2 && x <= r.right + 2 && y >= r.top - 2 && y <= r.bottom + 2;
+      const host = document.getElementById('giscusHost');
+      const f = host && host.querySelector('iframe');
+      // 留言板没在显示时（隐藏的 .page 仍在布局里、矩形照样存在），一律不算命中，
+      // 否则切到别的栏目时箭头会被那块看不见的 iframe 误伤
+      const page = host && host.closest ? host.closest('.page') : null;
+      if (f && (!page || page.classList.contains('active'))) {
+        const fr = f.getBoundingClientRect();
+        const hr = host.getBoundingClientRect();
+        // 可见区域 = iframe 矩形 ∩ 容器矩形（容器已裁剪掉超出的部分）
+        const left   = Math.max(fr.left,  hr.left);
+        const right  = Math.min(fr.right, hr.right);
+        const top    = Math.max(fr.top,   hr.top);
+        const bottom = Math.min(fr.bottom, hr.bottom);
+        if (right > left && bottom > top) {
+          over = x >= left - 2 && x <= right + 2 && y >= top - 2 && y <= bottom + 2;
         }
       }
       qArrow.classList.toggle(ARROW_IN_FRAME, over);
