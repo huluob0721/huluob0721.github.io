@@ -26,6 +26,12 @@
       color: #c9d1d9;
       font-family: 'Menlo', 'Consolas', 'Courier New', monospace;
       overflow: hidden;
+      /* 默认禁止选中：双击换壁纸 / 拖滚动条时不会再糊一层蓝色高亮 */
+      -webkit-user-select: none; user-select: none;
+    }
+    /* 例外：这几处文字允许手动拖选复制（邮箱、弹窗正文） */
+    .bio, .modal-body, .msg-text, .entry-comment {
+      -webkit-user-select: text; user-select: text;
     }
 
     /* ============ 自定义鼠标跟随 + 尾拖粒子 ============ */
@@ -69,79 +75,29 @@
       100% { opacity: 0; transform: scale(0.5) translateY(-100px) rotate(10deg); }
     }
 
-    /* ============ 代码打字开场区 ============ */
-    .stage-intro {
-      position: relative; z-index: 10;
-      min-height: 100vh;
-      display: flex; align-items: center; justify-content: center;
-      padding: 24px;
-      transition: opacity 0.6s ease;
-    }
-    .terminal {
-      width: 100%; max-width: 640px;
-      background: #161b22; border: 1px solid #30363d;
-      border-radius: 12px;
-      overflow: hidden;
-    }
-    .terminal-bar {
-      display: flex; align-items: center; gap: 8px;
-      padding: 10px 14px; background: #21262d; border-bottom: 1px solid #30363d;
-    }
-    .terminal-bar .dot { width: 12px; height: 12px; border-radius: 50%; background: #ff5f56; }
-    .terminal-bar .dot:nth-child(2) { background: #ffbd2e; }
-    .terminal-bar .dot:nth-child(3) { background: #27c93f; }
-    .terminal-bar .title { margin-left: 10px; font-size: 12px; color: #8b949e; }
-    .terminal-body { padding: 22px 26px; font-size: 15px; line-height: 1.9; min-height: 220px; }
-    .line { white-space: pre-wrap; }
-    .prompt { color: #7ee787; }
-    .cmd    { color: #d2a8ff; }
-    .ok     { color: #7ee787; }
-    .err    { color: #ff7b72; }
-    .out    { color: #c9d1d9; }
-    .muted  { color: #8b949e; }
-    .cursor {
-      display: inline-block; width: 8px; height: 1em;
-      background: #c9d1d9; vertical-align: text-bottom;
-      animation: blink 1s steps(1) infinite; margin-left: 2px;
-    }
-    @keyframes blink { 50% { opacity: 0; } }
-
-    .progress {
-      display: inline-block; width: 160px; height: 8px;
-      border-radius: 4px; background: #30363d;
-      vertical-align: middle; overflow: hidden;
-    }
-    .progress > i {
-      display: block; height: 100%; width: 0;
-      background: linear-gradient(90deg, #7ee787, #d2a8ff);
-      transition: width 0.2s linear;
-    }
-
-    /* ============ 首页背景层 ============ */
-    .bg-layer {
-      position: fixed; inset: 0; z-index: 0;
-      background-size: cover; background-position: center;
-      transition: opacity 1.2s ease;
-    }
-    .bg-overlay {
-      position: fixed; inset: 0; z-index: 1;
-      background: linear-gradient(135deg, rgba(102,126,234,0.55), rgba(118,75,162,0.55));
-    }
-
     /* ============ 个人简介页 ============ */
     .stage-profile {
       position: fixed; inset: 0; z-index: 100;
-      background: #000;
+      /* 壁纸加载失败时（如 raw.githubusercontent.com 被墙）也不会是纯黑 */
+      background: linear-gradient(135deg, #4c5fd7 0%, #764ba2 45%, #2b1055 100%);
       clip-path: circle(0px at 50% 50%);
       -webkit-clip-path: circle(0px at 50% 50%);
-      transition: clip-path 0.9s cubic-bezier(0.68, -0.55, 0.27, 1.55), opacity 0.3s ease;
+      transition: clip-path 0.75s cubic-bezier(0.4, 0, 0.2, 1);
       display: flex; align-items: center; justify-content: center;
       overflow: auto;
+      /* 顶部留出导航栏的空间，避免矮屏时导航压住卡片 */
+      padding: 86px 16px 32px; box-sizing: border-box;
+      --origin-x: 50%;
+      --origin-y: 50%;
     }
     .stage-profile.open {
       clip-path: circle(150vmax at var(--origin-x, 50%) var(--origin-y, 50%));
       -webkit-clip-path: circle(150vmax at var(--origin-x, 50%) var(--origin-y, 50%));
       z-index: 101;
+    }
+    /* 极老浏览器不支持 clip-path 时，直接整块显示，避免永远被裁成 0 半径 */
+    @supports not (clip-path: circle(50% at 50% 50%)) {
+      .stage-profile { clip-path: none; -webkit-clip-path: none; }
     }
 
     /* 壁纸层 */
@@ -344,40 +300,327 @@
       margin: 0 0 14px; cursor: none;
     }
     .modal-body p:last-child { margin-bottom: 0; }
+
+    /* ============ 顶部板块导航 ============ */
+    .topnav {
+      position: fixed; top: 22px; left: 50%;
+      transform: translate(-50%, -30px);
+      z-index: 300;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.45s ease, transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
+                  filter 0.3s ease;
+      font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB',
+                   'Microsoft YaHei', 'Source Han Sans SC', 'Noto Sans CJK SC',
+                   'WenQuanYi Micro Hei', sans-serif;
+    }
+    .topnav.show { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+    .topnav.dim  { opacity: 0.38; filter: blur(5px); pointer-events: none; }
+
+    .topnav-inner {
+      position: relative;
+      display: flex; align-items: center; gap: 2px;
+      padding: 6px; border-radius: 999px;
+      background: rgba(255, 255, 255, 0.30);
+      backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+      -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+      border: 1px solid var(--glass-border);
+      box-shadow: 0 10px 28px rgba(15, 23, 42, 0.18);
+    }
+
+    .nav-indicator {
+      position: absolute; top: 6px; left: 6px;
+      height: calc(100% - 12px); width: 0;
+      border-radius: 999px;
+      background: linear-gradient(135deg, rgba(102,126,234,0.88), rgba(118,75,162,0.88));
+      box-shadow: 0 4px 14px rgba(102, 126, 234, 0.45);
+      transition: transform 0.42s cubic-bezier(0.34, 1.4, 0.64, 1),
+                  width 0.42s cubic-bezier(0.34, 1.4, 0.64, 1);
+      z-index: 0;
+    }
+
+    .nav-link {
+      position: relative; z-index: 1;
+      border: none; background: transparent;
+      font-family: inherit; font-size: 14px; font-weight: 600;
+      color: #312e81; letter-spacing: 0.5px;
+      padding: 9px 18px; border-radius: 999px;
+      white-space: nowrap;
+      transition: color 0.28s ease, transform 0.2s ease;
+    }
+    .nav-link:hover { transform: translateY(-1px); }
+    .nav-link.active { color: #fff; }
+    .nav-link .nav-ico { margin-right: 5px; font-size: 13px; }
+
+    /* ============ 页面切换容器 ============ */
+    .pages {
+      position: relative;
+      transition: height 0.42s cubic-bezier(0.34, 1.3, 0.64, 1);
+    }
+    /* 仅在切换动画期间裁剪，避免平时裁掉列表项 hover 的上浮效果 */
+    .pages.animating { overflow: hidden; }
+    .page {
+      position: absolute; top: 0; left: 0; width: 100%;
+      opacity: 0; transform: translateY(16px) scale(0.98);
+      pointer-events: none;
+      transition: opacity 0.28s ease, transform 0.42s cubic-bezier(0.34, 1.4, 0.64, 1);
+    }
+    .page.active  { opacity: 1; transform: none; pointer-events: auto; }
+    .page.leaving { opacity: 0; transform: translateY(-16px) scale(0.98); }
+
+    /* ============ 通用条目列表（番剧 / 游戏共用） ============ */
+    .entry-list {
+      list-style: none; padding: 0 4px 0 0; margin: 0;
+      display: flex; flex-direction: column; gap: 10px;
+      max-height: 288px; overflow-y: auto;
+    }
+    .entry-item {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 10px 12px; border-radius: 12px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(3px);
+      -webkit-backdrop-filter: blur(3px);
+      border: 1px solid var(--glass-border);
+      transition: transform 0.18s ease, background 0.18s ease;
+    }
+    .entry-item:hover { transform: translateY(-2px); background: var(--glass-bg-hover); }
+
+    .entry-cover {
+      flex-shrink: 0; width: 44px; height: 62px; border-radius: 8px;
+      object-fit: cover; display: block;
+    }
+    .entry-main { flex: 1; min-width: 0; text-align: left; }
+    .entry-title {
+      font-size: 13.5px; color: #0f172a; font-weight: 600; line-height: 1.45;
+      display: -webkit-box; -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .entry-meta {
+      font-size: 11px; color: #475569; margin-top: 4px; font-weight: 500;
+    }
+    .entry-score { color: #f59e0b; font-weight: 700; letter-spacing: 1px; }
+    .entry-comment {
+      font-size: 12px; color: #334155; line-height: 1.65; margin-top: 5px;
+      /* 评论允许复制 */
+      -webkit-user-select: text; user-select: text;
+    }
+    .entry-status {
+      display: inline-block; font-size: 10px; font-weight: 600;
+      padding: 2px 7px; border-radius: 6px; margin-left: 6px;
+      background: rgba(102,126,234,0.14); color: #4338ca;
+    }
+    .entry-status.playing  { background: rgba(236,72,153,0.14); color: #be185d; }
+    .entry-status.dropped  { background: rgba(100,116,139,0.16); color: #475569; }
+
+    .entry-empty {
+      font-size: 12.5px; color: #64748b; text-align: center;
+      padding: 18px 8px; line-height: 1.7;
+    }
+
+    .section-hint {
+      font-size: 11px; color: #64748b; font-weight: 500;
+      float: right; margin-top: 2px;
+    }
+
+    /* ============ 留言板 ============ */
+    .board-form {
+      display: flex; flex-direction: column; gap: 8px;
+      margin-bottom: 14px;
+    }
+    .board-form input,
+    .board-form textarea {
+      width: 100%; box-sizing: border-box;
+      font-family: inherit; font-size: 13px; color: #0f172a;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 12px;
+      padding: 10px 12px;
+      outline: none;
+      resize: none;
+      -webkit-user-select: text; user-select: text;
+      transition: background 0.2s ease, border-color 0.2s ease;
+    }
+    .board-form textarea { min-height: 74px; line-height: 1.6; }
+    .board-form input::placeholder,
+    .board-form textarea::placeholder { color: #7c8aa5; }
+    .board-form input:focus,
+    .board-form textarea:focus {
+      background: var(--glass-bg-hover);
+      border-color: rgba(102,126,234,0.7);
+    }
+    .board-actions {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 10px;
+    }
+    .board-count { font-size: 11px; color: #64748b; font-weight: 600; }
+    .board-submit {
+      border: 1px solid rgba(255,255,255,0.75);
+      background: linear-gradient(135deg, rgba(102,126,234,0.9), rgba(118,75,162,0.9));
+      color: #fff; font-family: inherit; font-size: 13px; font-weight: 600;
+      padding: 8px 20px; border-radius: 999px;
+      transition: transform 0.18s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+      box-shadow: 0 4px 14px rgba(102,126,234,0.35);
+    }
+    .board-submit:hover { transform: translateY(-2px); box-shadow: 0 7px 18px rgba(102,126,234,0.45); }
+    .board-submit:active { transform: translateY(0) scale(0.96); }
+    .board-submit:disabled { opacity: 0.45; box-shadow: none; transform: none; }
+
+    .msg-item {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 10px 12px; border-radius: 12px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(3px);
+      -webkit-backdrop-filter: blur(3px);
+      border: 1px solid var(--glass-border);
+      text-align: left;
+    }
+    .msg-avatar {
+      flex-shrink: 0; width: 30px; height: 30px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: 12px; font-weight: 700;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+    }
+    .msg-main { flex: 1; min-width: 0; }
+    .msg-head {
+      display: flex; align-items: baseline; gap: 8px;
+      font-size: 12px; font-weight: 700; color: #312e81;
+    }
+    .msg-time { font-size: 10.5px; color: #7c8aa5; font-weight: 500; }
+    .msg-text {
+      font-size: 12.5px; color: #334155; line-height: 1.7; margin-top: 3px;
+      word-break: break-word; white-space: pre-wrap;
+      -webkit-user-select: text; user-select: text;
+    }
+    .msg-del {
+      flex-shrink: 0; border: none; background: transparent;
+      color: #94a3b8; font-size: 14px; line-height: 1;
+      padding: 2px 4px; border-radius: 6px;
+      opacity: 0; transition: opacity 0.18s ease, color 0.18s ease;
+    }
+    .msg-item:hover .msg-del { opacity: 1; }
+    .msg-del:hover { color: #be185d; }
+
+    /* ============ 自定义滚动条 ============
+       原生滚动条属于浏览器控件，鼠标在上面拖动时不会向页面派发 mousemove，
+       自定义指针就会卡住。所以这里换成用 DOM 画的滚动条，事件完全可控。 */
+    .cs-scroll { scrollbar-width: none; -ms-overflow-style: none; overscroll-behavior: contain; }
+    .cs-scroll::-webkit-scrollbar { width: 0; height: 0; display: none; }
+
+    .cs-track {
+      position: fixed; width: 8px;
+      border-radius: 4px;
+      background: rgba(15, 23, 42, 0.10);
+      opacity: 0; z-index: 9000;
+      /* 关键：隐藏时必须彻底不吃鼠标事件，否则会挡住下面的卡片 */
+      pointer-events: none;
+      transition: opacity 0.25s ease, background 0.2s ease;
+      -webkit-user-select: none; user-select: none;
+      touch-action: none;
+    }
+    .cs-track.show { opacity: 1; pointer-events: auto; }
+    .cs-track:hover, .cs-track.dragging { background: rgba(15, 23, 42, 0.16); }
+
+    /* 左右各扩 12px 的透明命中区：8px 太窄，手抖一点就抓空 */
+    .cs-track::before {
+      content: '';
+      position: absolute; top: 0; bottom: 0;
+      left: -12px; right: -12px;
+    }
+
+    .cs-thumb {
+      position: absolute; left: 0; width: 100%;
+      border-radius: 4px;
+      background: rgba(102, 126, 234, 0.55);
+      transition: background 0.2s ease, width 0.15s ease, left 0.15s ease;
+      touch-action: none;
+    }
+    .cs-track:hover .cs-thumb, .cs-thumb:hover { background: rgba(102, 126, 234, 0.8); }
+    .cs-track.dragging .cs-thumb { background: rgba(79, 70, 229, 0.9); }
+
+    @media (max-width: 560px) {
+      .topnav { top: 12px; max-width: 96vw; }
+      /* 五个栏目：手机上隐藏图标、压缩间距，保证一行放得下 */
+      .nav-link { font-size: 12.5px; padding: 8px 10px; letter-spacing: 0; }
+      .nav-link .nav-ico { display: none; }
+      .entry-list { max-height: 240px; }
+    }
+    @media (max-width: 380px) {
+      .nav-link { font-size: 12px; padding: 8px 7px; }
+    }
   </style>
 </head>
 <body>
 
-  <div class="bg-layer" id="bgLayer"></div>
-  <div class="bg-overlay"></div>
-
-  <div class="stage-intro" id="stageIntro">
-    <div class="terminal">
-      <div class="terminal-bar">
-        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-        <span class="title">welcome.sh — bash</span>
-      </div>
-      <div class="terminal-body" id="terminalBody"></div>
-    </div>
-  </div>
-
   <div class="q-arrow" id="qArrow"></div>
 
+  <nav class="topnav" id="topNav">
+    <div class="topnav-inner" id="topNavInner">
+      <span class="nav-indicator" id="navIndicator"></span>
+      <button class="nav-link active" data-page="home"><span class="nav-ico">🏠</span>主页</button>
+      <button class="nav-link" data-page="anime"><span class="nav-ico">📺</span>看过的番</button>
+      <button class="nav-link" data-page="game"><span class="nav-ico">🎮</span>玩过的游戏</button>
+      <button class="nav-link" data-page="board"><span class="nav-ico">💬</span>留言板</button>
+      <button class="nav-link" data-page="news"><span class="nav-ico">✨</span>最新动态</button>
+    </div>
+  </nav>
+
   <div class="stage-profile" id="stageProfile">
-    <div class="profile-card">
-      <img class="avatar" id="avatarImg" alt="avatar">
-      <div class="avatar-fallback" id="avatarFallback"></div>
-      <h2>胡萝卜</h2>
-      <p class="subtitle">一名对电脑感兴趣的学生</p>
-      <div class="bio">
-        <p>你好！我是胡萝卜，目前是上海市第二中学的一名高一学生</p>
-        <p>兴趣爱好有：编程，看番，运动，打游戏</p>
-        <p>最近迷上了Galgame，如果你有喜欢的，欢迎联系我</p>
-        <p>联系方式：hhzweiyu6b35@outlook.com</p>
-      </div>
-      <div class="news-section">
-        <div class="section-title">📌 最近动态</div>
-        <ul class="news-list" id="newsMount"></ul>
+    <div class="profile-card" id="profileCard">
+      <div class="pages" id="pagesWrap">
+
+        <!-- ============ 主页 ============ -->
+        <section class="page active" data-page="home">
+          <img class="avatar" id="avatarImg" alt="avatar">
+          <div class="avatar-fallback" id="avatarFallback"></div>
+          <h2>胡萝卜</h2>
+          <p class="subtitle">一名对电脑感兴趣的学生</p>
+          <div class="bio">
+            <p>你好！我是胡萝卜，目前是上海市第二中学的一名高一学生</p>
+            <p>兴趣爱好有：编程，看番，运动，打游戏</p>
+            <p>最近迷上了Galgame，如果你有喜欢的，欢迎联系我</p>
+            <p>联系方式：hhzweiyu6b35@outlook.com</p>
+          </div>
+        </section>
+
+        <!-- ============ 看过的番 ============ -->
+        <section class="page" data-page="anime">
+          <div class="news-section">
+            <div class="section-title">📺 看过的番<span class="section-hint" id="animeHint"></span></div>
+            <ul class="entry-list" id="animeMount"></ul>
+          </div>
+        </section>
+
+        <!-- ============ 玩过的游戏 ============ -->
+        <section class="page" data-page="game">
+          <div class="news-section">
+            <div class="section-title">🎮 玩过的游戏<span class="section-hint" id="gameHint"></span></div>
+            <ul class="entry-list" id="gameMount"></ul>
+          </div>
+        </section>
+
+        <!-- ============ 留言板 ============ -->
+        <section class="page" data-page="board">
+          <div class="news-section">
+            <div class="section-title">💬 留言板<span class="section-hint" id="boardHint"></span></div>
+            <form class="board-form" id="boardForm" autocomplete="off">
+              <input id="boardName" type="text" maxlength="16" placeholder="昵称（可留空）">
+              <textarea id="boardText" maxlength="200" placeholder="随便写点什么吧…"></textarea>
+              <div class="board-actions">
+                <span class="board-count" id="boardCount">0 / 200</span>
+                <button class="board-submit" id="boardSubmit" type="submit" disabled>留个言</button>
+              </div>
+            </form>
+            <ul class="entry-list" id="boardMount"></ul>
+          </div>
+        </section>
+
+        <!-- ============ 最新动态 ============ -->
+        <section class="page" data-page="news">
+          <div class="news-section">
+            <div class="section-title">✨ 最新动态</div>
+            <ul class="news-list" id="newsMount"></ul>
+          </div>
+        </section>
+
       </div>
     </div>
   </div>
@@ -390,20 +633,69 @@
     <div class="modal-body" id="modalBody"></div>
   </div>
 
+  <!-- 看门狗：独立脚本，放在主脚本之前。
+       主脚本任何一步抛错时，它依然能保证主页展开，不会黑屏。 -->
   <script>
-    const BG_IMAGES   = [];
-    const BG_INTERVAL = 6000;
+    (function () {
+      // 最底层兜底：只做"把页面显示出来"这一件事，不依赖任何其它代码
+      function manualOpen() {
+        try {
+          // 尽力补渲染列表：只在列表还空着时才渲染，避免重复插入
+          var pairs = [
+            ['animeMount', 'renderAnime'], ['gameMount', 'renderGames'],
+            ['boardMount', 'renderBoard'], ['newsMount', 'renderDynamics']
+          ];
+          pairs.forEach(function (p) {
+            var el = document.getElementById(p[0]);
+            if (el && !el.children.length && typeof window[p[1]] === 'function') window[p[1]]();
+          });
+        } catch (e) { /* 忽略 */ }
+        var p = document.getElementById('stageProfile');
+        if (p && !p.classList.contains('open')) {
+          p.style.setProperty('--origin-x', '50%');
+          p.style.setProperty('--origin-y', '50%');
+          p.classList.add('open');
+        }
+        var n = document.getElementById('topNav');
+        if (n) n.classList.add('show');
+      }
 
+      window.__forceOpen = function () {
+        // 先走完整入场流程；它出错（含 async 内部抛错）时再手动兜底
+        try {
+          var r = (typeof enterProfile === 'function') ? enterProfile() : null;
+          if (r && typeof r.catch === 'function') r.catch(manualOpen);
+        } catch (e) { manualOpen(); }
+        // 二次确认：无论上面发生什么，最终都必须展开
+        setTimeout(function () {
+          var p = document.getElementById('stageProfile');
+          if (p && !p.classList.contains('open')) manualOpen();
+        }, 600);
+      };
+
+      setTimeout(window.__forceOpen, 2000);
+      window.addEventListener('error', function () { setTimeout(window.__forceOpen, 200); });
+      window.addEventListener('unhandledrejection', function () { setTimeout(window.__forceOpen, 200); });
+    })();
+  </script>
+
+  <script>
+    /* 壁纸：双击页面空白处切换（Background3 已删除，故只保留两张） */
     const PROFILE_WALLPAPERS = [
       'https://raw.githubusercontent.com/huluob0721/huluob0721.github.io/main/Background.png',
-      'https://raw.githubusercontent.com/huluob0721/huluob0721.github.io/main/Background2.png',
-      'https://raw.githubusercontent.com/huluob0721/huluob0721.github.io/main/Background3.png'
+      'https://raw.githubusercontent.com/huluob0721/huluob0721.github.io/main/Background2.png'
     ];
     const AVATAR_URL  = 'https://raw.githubusercontent.com/huluob0721/huluob0721.github.io/main/Profile_Picture.png';
     const PRELOAD_TIMEOUT = 3000;
 
     const DYNAMICS = [
-      { date: '2026.09.05', text: '博客上线啦 🎉', tag: '新',
+      { date: '2026.09.30', text: '国庆更新', tag: '新',
+        detail: [
+          '马上国庆节了，可以嗨7天了，开心～',
+          '网站也是更新了，现在做出了板块的雏形，后续会慢慢完善。',
+          '后面会随缘更新一些学习笔记、折腾记录、看番记录、玩游戏记录等内容，欢迎常来逛逛～',
+        ] },
+      { date: '2026.09.05', text: '博客上线啦 🎉',
         detail: [
           '折腾了好几天，个人博客终于正式上线啦！',
           '基于 GitHub Pages 搭建，零服务器成本，提交即部署。',
@@ -419,15 +711,64 @@
         detail: [
           '第一次接触 GitHub Pages，发现搭静态网站居然这么简单。',
           '流程大概是：建仓库 → 上传 HTML → 开启 Pages 功能 → 绑定域名（可选）。',
-          '还顺便学会了用自定义域名 + CDN 加速，国内访问也挺快。',
+          '其实网站主体并不是我写的，还得感谢AI，帮我生成了大部分代码，省了不少时间。',
         ] },
+    ];
+
+    /* ============ 看过的番 ⚠️ 示例数据，替换成你自己的记录即可 ============
+       cover  : 封面图链接，留空则显示渐变色块（用 color 作为主色）
+       score  : 1~5 星
+       status : 已看完 / 在看 / 弃番
+    */
+    const ANIME = [
+      { title: 'CLANNAD', year: '2007', score: 5, status: '已看完', color: '#667eea', cover: '',
+        comment: '冈崎朋也和古河渚的日常与离别，笑着笑着就哭了......' },
+      { title: '紫罗兰永恒花园', year: '2018', score: 5, status: '已看完', color: '#ec4899', cover: '',
+        comment: '画面质感拉满，每一封信都是一次告别' },
+      { title: '轻音少女', year: '2009', score: 5, status: '已看完', color: '#f59e0b', cover: '',
+        comment: '轻音永不毕业！' },
+      { title: '冰菓', year: '2012', score: 5, status: '已看完', color: '#22d3ee', cover: '',
+        comment: '日常推理，京阿尼画面巅峰之作' },
+      { title: '中二病也要谈恋爱', year: '2012', score: 5, status: '已看完', color: '#a78bfa', cover: '',
+        comment: '邪王真眼是最强的！' },
+      { title: '凉宫春日的忧郁', year: '2006', score: 5, status: '已看完', color: '#fbbf24', cover: '',
+        comment: 'SOS 团的日常，经典老番，God Knows神了！' },
+    ];
+
+    /* ============ 玩过的游戏 ⚠️ 同样是示例数据 ============
+       cover  : 封面图链接，留空则显示渐变色块
+       score  : 1~5 星
+       status : 已通关 / 在玩 / 弃坑
+       hours  : 游玩时长（小时，可省略）
+    */
+    const GAMES = [
+      { title: 'CLANNAD', platform: 'Steam / 实体', hours: 40, score: 5, status: '玩了一半左右', color: '#667eea', cover: '',
+        comment: '学园篇差不多走完了，因为中考退坑了......' },
+      { title: 'ATRI -My Dear Moments-', platform: 'Steam', hours: 12, score: 5, status: '已通关', color: '#0ea5e9', cover: '',
+        comment: '夏、海、还有机器人少女，短但很完整。私は高性能ですから！' },
+      { title: 'Minecraft', platform: 'Java 版', hours: 150, score: 5, status: '在玩', color: '#16a34a', cover: '',
+        comment: '从初中玩到现在，依旧只能建火柴盒......' },
+      { title: '原神', platform: 'PC / 手机', hours: 200, score: 3, status: '弃坑', color: '#f59e0b', cover: '',
+        comment: '入宅作，后来实在肝不动了，已退坑......' },
+      { title: 'GTA4 & GTA5', platform: 'PC', hours: 180, score: 5, status: '在玩', color: '#0ea5e9', cover: '',
+        comment: '4 代细节做的好，5 代画质更高。依旧道德与法治这一块' },
+      { title: '微软模拟飞行 2020', platform: 'Xbox', hours: 30, score: 5, status: '在玩', color: '#0ea5e9', cover: '',
+        comment: '风景模拟器，天气和地景真的神了' },
+      { title: '微软模拟飞行 X', platform: 'PC', hours: 50, score: 5, status: '偶尔玩', color: '#0ea5e9', cover: '',
+        comment: '微软模拟飞行最成功的一代，现在偶尔还会开一下。' },
+      { title: '钢铁雄心 4', platform: 'Steam', hours: 400, score: 5, status: '在玩', color: '#7c2d12', cover: '',
+        comment: '地图填色游戏，一局一个通宵。玩完后变战犯了......' },
     ];
 
     /* ============ 自定义鼠标 ============ */
     const qArrow = document.getElementById('qArrow');
+    /* 抽出来供拖拽滚动条等场景复用（那些场景鼠标事件可能不冒泡到 document） */
+    function moveArrow(x, y) {
+      qArrow.style.left = x + 'px';
+      qArrow.style.top  = y + 'px';
+    }
     document.addEventListener('mousemove', (e) => {
-      qArrow.style.left = e.clientX + 'px';
-      qArrow.style.top  = e.clientY + 'px';
+      moveArrow(e.clientX, e.clientY);
       createParticle(e.clientX, e.clientY);
     });
     function createParticle(x, y) {
@@ -440,9 +781,13 @@
       document.body.appendChild(p);
       setTimeout(() => p.remove(), 800);
     }
-    document.querySelectorAll('h1, p').forEach(el => {
-      el.addEventListener('mouseenter', () => qArrow.classList.add('hover'));
-      el.addEventListener('mouseleave', () => qArrow.classList.remove('hover'));
+    /* 悬停反馈：原有 h1/p 之外，补上导航与列表项（事件委托，动态节点同样生效） */
+    const HOVER_SELECTOR = 'h1, p, .nav-link, .entry-item, .msg-item, .news-item, .modal-close, .board-submit';
+    document.addEventListener('mouseover', (e) => {
+      if (e.target.closest && e.target.closest(HOVER_SELECTOR)) qArrow.classList.add('hover');
+    });
+    document.addEventListener('mouseout', (e) => {
+      if (e.target.closest && e.target.closest(HOVER_SELECTOR)) qArrow.classList.remove('hover');
     });
 
     const HEART_COLORS = ['#ff6b81', '#ff4757', '#ff3838', '#ff9ff3', '#f368e0', '#ee5a24'];
@@ -458,68 +803,6 @@
       setTimeout(() => heart.remove(), 1000);
     });
 
-    /* ============ 打字开场 ============ */
-    const body = document.getElementById('terminalBody');
-    function typeLine(text, cls = 'out', speed = 28) {
-      return new Promise((resolve) => {
-        const line = document.createElement('div');
-        line.className = 'line';
-        body.appendChild(line);
-        const cursor = document.createElement('span');
-        cursor.className = 'cursor';
-        body.appendChild(cursor);
-        let i = 0;
-        const timer = setInterval(() => {
-          line.textContent += text.charAt(i);
-          i++;
-          window.scrollTo(0, document.body.scrollHeight);
-          if (i >= text.length) {
-            clearInterval(timer);
-            cursor.remove();
-            line.classList.add(cls);
-            resolve();
-          }
-        }, speed);
-      });
-    }
-    function addLine(html, cls = 'out') {
-      const line = document.createElement('div');
-      line.className = 'line ' + cls;
-      line.innerHTML = html;
-      body.appendChild(line);
-      window.scrollTo(0, document.body.scrollHeight);
-      return line;
-    }
-    function runProgress(label) {
-      return new Promise((resolve) => {
-        const line = addLine(`<span class="muted">${label}</span> <span class="progress"><i></i></span> `, 'out');
-        const bar = line.querySelector('.progress > i');
-        let w = 0;
-        const step = setInterval(() => {
-          w += Math.random() * 12 + 6;
-          if (w >= 100) { w = 100; clearInterval(step); }
-          bar.style.width = w + '%';
-          if (w === 100) {
-            line.innerHTML = `<span class="muted">${label}</span> <span class="ok">[OK]</span>`;
-            resolve();
-          }
-        }, 90);
-      });
-    }
-    async function bootSequence() {
-      addLine('<span class="muted"># 胡萝卜的博客 · 启动中</span>');
-      await sleep(400);
-      await typeLine('$ ./welcome.sh', 'cmd', 40);
-      await sleep(300);
-      await runProgress('Loading assets');
-      await runProgress('Fetching profile');
-      await typeLine('> Initializing...', 'cmd', 24);
-      await typeLine('你好，陌生人', 'out', 45);
-      await typeLine('我是胡萝卜，欢迎来到我的个人博客', 'out', 35);
-      await sleep(200);
-      await typeLine('> Ready.', 'ok', 40);
-      addLine('<span class="cursor"></span>');
-    }
     function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
     /* ============ 预加载 ============ */
@@ -528,10 +811,10 @@
         if (!url) return resolve(false);
         const img = new Image();
         let done = false;
-        const finish = () => { if (!done) { done = true; resolve(true); } };
-        img.onload = finish;
-        img.onerror = () => resolve(false);
-        setTimeout(finish, timeout);
+        const finish = (ok) => { if (!done) { done = true; resolve(ok); } };
+        img.onload  = () => finish(true);
+        img.onerror = () => finish(false);
+        setTimeout(() => finish(false), timeout);   // 超时按失败处理，不再谎报成功
         img.src = url;
       });
     }
@@ -556,41 +839,284 @@
       },
     };
 
-    /* ============ 进入简介页 ============ */
-    async function enterProfile() {
-      const profile = document.getElementById('stageProfile');
-      profile.style.setProperty('--origin-x', '50%');
-      profile.style.setProperty('--origin-y', '50%');
-      const intro = document.getElementById('stageIntro');
-      intro.style.opacity = '0';
-      await sleep(400);
-      intro.style.display = 'none';
-      renderDynamics();
-      profile.classList.add('open');
-      qArrow.classList.add('on-profile');
-      await sleep(900);
+    /* ============ 板块页切换 ============ */
+    const topNav      = document.getElementById('topNav');
+    const navIndicator = document.getElementById('navIndicator');
+    const pagesWrap   = document.getElementById('pagesWrap');
+    const pageEls     = {};
+    document.querySelectorAll('.page').forEach(el => { pageEls[el.dataset.page] = el; });
+
+    const PAGE_KEYS = ['home', 'anime', 'game', 'board', 'news'];
+    let currentPage = 'home';
+    let pageAnimating = false;
+
+    function moveIndicator() {
+      const btn = document.querySelector('.nav-link.active');
+      if (!btn || !navIndicator) return;
+      navIndicator.style.width = btn.offsetWidth + 'px';
+      navIndicator.style.transform = `translateX(${btn.offsetLeft - 6}px)`;
     }
 
-    /* ============ 首页背景轮播 ============ */
-    (function () {
-      const bg = document.getElementById('bgLayer');
-      if (!BG_IMAGES.length) return;
-      BG_IMAGES.forEach(url => wallpaperPreloader.preload(url));
-      let i = 0;
-      wallpaperPreloader.get(BG_IMAGES[0]).then(() => {
-        bg.style.backgroundImage = `url("${BG_IMAGES[0]}")`;
+    function setNavActive(name) {
+      document.querySelectorAll('.nav-link').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.page === name);
       });
-      if (BG_IMAGES.length > 1) {
-        setInterval(async () => {
-          const next = (i + 1) % BG_IMAGES.length;
-          await wallpaperPreloader.get(BG_IMAGES[next]);
-          i = next;
-          bg.style.backgroundImage = `url("${BG_IMAGES[i]}")`;
-        }, BG_INTERVAL);
+      moveIndicator();
+    }
+
+    /* 同步容器高度到当前页（页面为绝对定位，高度由 JS 维护） */
+    function syncPagesHeight(name) {
+      const el = pageEls[name];
+      if (!el || !pagesWrap) return;
+      pagesWrap.style.height = el.offsetHeight + 'px';
+    }
+
+    async function switchPage(name) {
+      if (!pageEls[name] || name === currentPage || pageAnimating) return;
+      pageAnimating = true;
+      const cur  = pageEls[currentPage];
+      const next = pageEls[name];
+
+      cur.classList.remove('active');
+      cur.classList.add('leaving');
+      next.classList.add('active');
+      setNavActive(name);
+      pagesWrap.classList.add('animating');
+      syncPagesHeight(name);
+      // 卡片高度/位置在动画中一直在变，逐帧跟随，滚动条才不会错位
+      syncScrollbarsFor(560);
+
+      currentPage = name;
+      safeHash(name);
+
+      await sleep(430);
+      cur.classList.remove('leaving');
+      pagesWrap.classList.remove('animating');
+      pageAnimating = false;
+      refreshScrollbars();
+    }
+
+    document.querySelectorAll('.nav-link').forEach(btn => {
+      btn.addEventListener('click', () => switchPage(btn.dataset.page));
+    });
+
+    window.addEventListener('resize', () => {
+      moveIndicator();
+      syncPagesHeight(currentPage);
+      refreshScrollbars();
+    });
+
+    /* ============ 自定义滚动条 ============
+       原生滚动条是浏览器控件，鼠标在它上面拖动时不会向页面派发 mousemove，
+       自定义指针就会原地卡死。这里用 DOM 画一个滚动条替代，
+       拖拽时用 setPointerCapture，指针位置全程可控。 */
+    const scrollbars = [];
+
+    function setupCustomScroll(el, isVisible) {
+      if (!el) return null;
+      el.classList.add('cs-scroll');          // 隐藏原生滚动条
+
+      const track = document.createElement('div');
+      track.className = 'cs-track';
+      const thumb = document.createElement('div');
+      thumb.className = 'cs-thumb';
+      thumb.style.top = '0';
+      track.appendChild(thumb);
+      document.body.appendChild(track);
+
+      let dragging = false, startY = 0, startScroll = 0, thumbH = 28;
+
+      function hide() { track.classList.remove('show'); }
+
+      function refresh() {
+        // 主页还没展开时不显示：track 挂在 body 上、不受 clip-path 裁剪，
+        // 否则会有一根滚动条浮在未展开的黑底上
+        const stage = document.getElementById('stageProfile');
+        if (stage && !stage.classList.contains('open')) { hide(); return; }
+        // 元素不可见（弹窗关闭、不在当前板块页）时收起
+        if (isVisible && !isVisible()) { hide(); return; }
+        const page = el.closest ? el.closest('.page') : null;
+        if (page && !page.classList.contains('active')) { hide(); return; }
+        const r = el.getBoundingClientRect();
+        const maxScroll = el.scrollHeight - el.clientHeight;
+        if (maxScroll <= 1 || r.height < 40 || r.width < 20) { hide(); return; }
+
+        const thumbH = Math.max(28, r.height * (el.clientHeight / el.scrollHeight));
+        const travel = Math.max(1, r.height - thumbH);
+        track.classList.add('show');
+        track.style.left   = (r.right - 11) + 'px';
+        track.style.top    = r.top + 'px';
+        track.style.height = r.height + 'px';
+        thumb.style.height = thumbH + 'px';
+        thumb.style.transform = `translateY(${(el.scrollTop / maxScroll) * travel}px)`;
+      }
+
+      /* ---- 拖拽 ----
+         不依赖 setPointerCapture（某些浏览器/环境会静默失效，导致"拖不动"），
+         改为按下时把 pointermove / pointerup 挂到 window 上，
+         同时补一套 mouse 事件兜底，鼠标移出轨道甚至移出窗口都跟手。 */
+      let travel = 1, maxScroll = 1;
+
+      function beginDrag(e) {
+        if (dragging) return;
+        const r = el.getBoundingClientRect();
+        thumbH = thumb.offsetHeight || thumb.getBoundingClientRect().height;
+        travel = Math.max(1, r.height - thumbH);
+        maxScroll = Math.max(0, el.scrollHeight - el.clientHeight);
+        dragging = true;
+        startY = e.clientY;
+        startScroll = el.scrollTop;
+        track.classList.add('dragging');
+        try { if (e.pointerId != null && thumb.setPointerCapture) thumb.setPointerCapture(e.pointerId); } catch (err) { /* 忽略 */ }
+        window.addEventListener('pointermove', onMove, true);
+        window.addEventListener('pointerup', endDrag, true);
+        window.addEventListener('pointercancel', endDrag, true);
+        window.addEventListener('mousemove', onMove, true);
+        window.addEventListener('mouseup', endDrag, true);
+        window.addEventListener('blur', endDrag, true);
+        if (e.cancelable) e.preventDefault();
+        e.stopPropagation();
+      }
+
+      function onMove(e) {
+        moveArrow(e.clientX, e.clientY);        // 拖动过程中指针持续跟随
+        if (!dragging) return;
+        el.scrollTop = startScroll + (e.clientY - startY) * (maxScroll / travel);
+        moveArrow(e.clientX, e.clientY);
+      }
+
+      function endDrag(e) {
+        if (!dragging) return;
+        dragging = false;
+        track.classList.remove('dragging');
+        try { if (e && e.pointerId != null && thumb.releasePointerCapture) thumb.releasePointerCapture(e.pointerId); } catch (err) { /* 忽略 */ }
+        window.removeEventListener('pointermove', onMove, true);
+        window.removeEventListener('pointerup', endDrag, true);
+        window.removeEventListener('pointercancel', endDrag, true);
+        window.removeEventListener('mousemove', onMove, true);
+        window.removeEventListener('mouseup', endDrag, true);
+        window.removeEventListener('blur', endDrag, true);
+        refresh();
+      }
+
+      // 抓 thumb
+      thumb.addEventListener('pointerdown', (e) => { e.stopPropagation(); beginDrag(e); });
+      thumb.addEventListener('mousedown', (e) => {
+        if (e.pointerType === undefined) { e.stopPropagation(); beginDrag(e); }
+      });
+
+      // 点轨道空白处：跳到对应位置，并允许接着拖
+      track.addEventListener('pointerdown', (e) => {
+        if (e.target === thumb) return;
+        const r = el.getBoundingClientRect();
+        const th = thumb.offsetHeight || 28;
+        const tv = Math.max(1, r.height - th);
+        const ms = Math.max(0, el.scrollHeight - el.clientHeight);
+        el.scrollTop = ((e.clientY - r.top - th / 2) / tv) * ms;
+        beginDrag(e);
+      });
+
+      el.addEventListener('scroll', refresh);
+      scrollbars.push(refresh);
+      refresh();
+      return refresh;
+    }
+
+    function refreshScrollbars() {
+      scrollbars.forEach(fn => { try { fn(); } catch (e) { /* 忽略 */ } });
+    }
+
+    /* 逐帧跟随：入场 / 切页这类带 transform、height 动画的场景下，
+       只刷新一次会停在动画中途的错误位置（就是"一开始错位"的原因）。 */
+    let syncUntil = 0, syncing = false;
+    function syncScrollbarsFor(ms) {
+      syncUntil = Math.max(syncUntil, performance.now() + ms);
+      if (syncing) return;
+      syncing = true;
+      (function loop() {
+        refreshScrollbars();
+        if (performance.now() < syncUntil) requestAnimationFrame(loop);
+        else syncing = false;
+      })();
+    }
+
+    (function initScrollbars() {
+      const modal = document.getElementById('modal');
+      const stage = document.getElementById('stageProfile');
+      setupCustomScroll(document.getElementById('newsMount'));
+      setupCustomScroll(document.getElementById('animeMount'));
+      setupCustomScroll(document.getElementById('gameMount'));
+      setupCustomScroll(document.getElementById('boardMount'));
+      setupCustomScroll(modal, () => modal.classList.contains('show'));
+      setupCustomScroll(stage,  () => stage.classList.contains('open'));
+
+      // 外层容器滚动 / 尺寸变化时，所有滚动条都要重新定位
+      stage.addEventListener('scroll', refreshScrollbars, { passive: true });
+      window.addEventListener('scroll', refreshScrollbars, { passive: true });
+
+      // 内容增删（留言、切页）导致尺寸变化时自动刷新
+      if (window.ResizeObserver) {
+        const ro = new ResizeObserver(() => { syncScrollbarsFor(320); });
+        ro.observe(pagesWrap);
+        ['newsMount', 'animeMount', 'gameMount', 'boardMount', 'modal'].forEach(id => {
+          const n = document.getElementById(id);
+          if (n) ro.observe(n);
+        });
       }
     })();
 
-    /* ============ 简介页壁纸轮换 ============ */
+    /* 某些场景（file://、沙箱 iframe）调用 replaceState 会抛错，必须兜住 */
+    function safeHash(name) {
+      try {
+        if (location.hash.slice(1) !== name) history.replaceState(null, '', '#' + name);
+      } catch (e) { /* 忽略：地址栏同步失败不影响功能 */ }
+    }
+
+    /* 支持 #home / #anime / #news 直达 */
+    (function initPage() {
+      try {
+        const hash = location.hash.slice(1);
+        const target = PAGE_KEYS.includes(hash) ? hash : 'home';
+        if (target !== 'home' && pageEls[target]) {
+          pageEls.home.classList.remove('active');
+          pageEls[target].classList.add('active');
+          currentPage = target;
+        }
+        setNavActive(currentPage);
+        safeHash(currentPage);
+      } catch (e) { console.warn('initPage:', e); }
+    })();
+
+    /* ============ 进入简介页 ============ */
+    let profileOpened = false;
+    async function enterProfile() {
+      if (profileOpened) return;
+      profileOpened = true;
+      const profile = document.getElementById('stageProfile');
+      profile.style.setProperty('--origin-x', '50%');
+      profile.style.setProperty('--origin-y', '50%');
+      try { renderDynamics(); } catch (e) { console.warn('renderDynamics:', e); }
+      try { renderAnime(); } catch (e) { console.warn('renderAnime:', e); }
+      try { renderGames(); } catch (e) { console.warn('renderGames:', e); }
+      try { renderBoard(); } catch (e) { console.warn('renderBoard:', e); }
+      syncPagesHeight(currentPage);
+      profile.classList.add('open');
+      qArrow.classList.add('on-profile');
+      /* 卡片入场有 0.4s 延迟 + 0.6s 缩放动画，期间逐帧跟随滚动条位置 */
+      syncScrollbarsFor(1400);
+      await sleep(430);
+      topNav.classList.add('show');
+      moveIndicator();
+      syncPagesHeight(currentPage);
+      /* 字体加载完成后重新量一次高度，避免排版抖动 */
+      if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(() => {
+          moveIndicator(); syncPagesHeight(currentPage); syncScrollbarsFor(300);
+        });
+      }
+    }
+
+    /* ============ 主页壁纸轮换 ============ */
     let currentWallpaperIndex = 0;
     let isSwitching = false;
 
@@ -622,18 +1148,37 @@
       }, 280);
     }
 
+    /* 双击时不选中文字：第二下 mousedown 直接拦掉默认的"选词"行为 */
+    document.addEventListener('mousedown', (e) => {
+      if (e.detail >= 2) { e.preventDefault(); clearSelection(); }
+    });
+    function clearSelection() {
+      try {
+        const sel = window.getSelection();
+        if (sel && !sel.isCollapsed) sel.removeAllRanges();
+      } catch (e) { /* 忽略 */ }
+    }
+
     document.addEventListener('dblclick', (e) => {
+      clearSelection();
       const profile = document.getElementById('stageProfile');
       if (!profile.classList.contains('open')) return;
-      if (e.target.closest('.profile-card, .modal, .modal-mask')) return;
+      if (e.target.closest('.profile-card, .modal, .modal-mask, .topnav, .cs-track')) return;
       nextWallpaper();
     });
 
-    /* ============ 头像 ============ */
+    /* ============ 头像（加载失败自动回退到渐变色块） ============ */
     (function () {
       const img = document.getElementById('avatarImg');
       const fallback = document.getElementById('avatarFallback');
-      if (!AVATAR_URL) { img.style.display='none'; fallback.style.display='block'; return; }
+      if (!img || !fallback) return;
+      const useFallback = () => {
+        img.style.display = 'none';
+        fallback.style.display = 'block';
+      };
+      if (!AVATAR_URL) { useFallback(); return; }
+      img.onerror = useFallback;
+      img.onload  = () => { img.style.display = 'block'; fallback.style.display = 'none'; };
       img.src = AVATAR_URL;
       img.style.display = 'block';
       fallback.style.display = 'none';
@@ -643,6 +1188,7 @@
     function renderDynamics() {
       const mount = document.getElementById('newsMount');
       if (!mount) return;
+      mount.innerHTML = '';
       if (!DYNAMICS || !DYNAMICS.length) { mount.style.display = 'none'; return; }
       const frag = document.createDocumentFragment();
       DYNAMICS.forEach((item, idx) => {
@@ -666,8 +1212,231 @@
         mount.querySelectorAll('.news-item').forEach(el => {
           el.style.opacity = '1'; el.style.transform = 'translateY(0)';
         });
+        refreshScrollbars();
+      });
+      refreshScrollbars();
+    }
+
+    /* ============ 通用条目列表渲染（番剧 / 游戏共用） ============ */
+    function esc(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+    function statusCls(status) {
+      const s = String(status || '');
+      // 进行中的都统一用粉色的"在玩/在看"样式
+      if (s.indexOf('在') === 0 || s.indexOf('一半') >= 0) return 'playing';
+      if (s.indexOf('弃') === 0) return 'dropped';
+      return '';
+    }
+    function starStr(score) {
+      const n = Math.max(0, Math.min(5, score || 0));
+      return '★'.repeat(n) + '☆'.repeat(5 - n);
+    }
+
+    function renderEntries(mountId, hintId, list, opts) {
+      opts = opts || {};
+      const mount = document.getElementById(mountId);
+      if (!mount) return;
+      mount.innerHTML = '';
+      mount.style.display = '';
+
+      if (!list || !list.length) {
+        mount.innerHTML = `<li class="entry-empty">${opts.empty || '还没有内容～'}</li>`;
+        if (hintId) { const h = document.getElementById(hintId); if (h) h.textContent = ''; }
+        refreshScrollbars();
+        return;
+      }
+
+      const hint = hintId ? document.getElementById(hintId) : null;
+      if (hint && opts.hint) hint.textContent = opts.hint(list);
+
+      const frag = document.createDocumentFragment();
+      list.forEach((item, idx) => {
+        const li = document.createElement('li');
+        li.className = 'entry-item';
+        li.style.opacity = '0';
+        li.style.transform = 'translateY(12px)';
+        li.style.transition = 'opacity 0.45s ease, transform 0.45s cubic-bezier(0.68,-0.55,0.27,1.55)';
+        li.style.transitionDelay = (idx * 0.08) + 's';
+
+        const cover = item.cover
+          ? `<img class="entry-cover" src="${esc(item.cover)}" alt="" loading="lazy">`
+          : `<div class="entry-cover" style="background:linear-gradient(135deg, ${esc(item.color || '#667eea')}, rgba(255,255,255,0.45));
+              display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:18px;">${esc((item.title || '?').charAt(0))}</div>`;
+
+        const meta = [item.year, item.platform, item.hours ? item.hours + 'h' : '']
+          .filter(Boolean).join(' · ');
+
+        li.innerHTML = `
+          ${cover}
+          <div class="entry-main">
+            <div class="entry-title">${esc(item.title)}${item.status ? `<span class="entry-status ${statusCls(item.status)}">${esc(item.status)}</span>` : ''}</div>
+            <div class="entry-meta">${meta ? esc(meta) + ' · ' : ''}<span class="entry-score">${starStr(item.score)}</span></div>
+            ${item.comment ? `<div class="entry-comment">${esc(item.comment)}</div>` : ''}
+          </div>`;
+        frag.appendChild(li);
+      });
+      mount.appendChild(frag);
+      requestAnimationFrame(() => {
+        mount.querySelectorAll('.entry-item').forEach(el => {
+          el.style.opacity = '1'; el.style.transform = 'translateY(0)';
+        });
+        refreshScrollbars();
+      });
+      refreshScrollbars();
+    }
+
+    /* ============ 看过的番 ============ */
+    function renderAnime() {
+      renderEntries('animeMount', 'animeHint', ANIME, {
+        empty: '还没记录番剧，去脚本里的 ANIME 数组添加吧～',
+        hint: (list) => {
+          const rated = list.filter(a => a.score);
+          const avg = rated.reduce((s, a) => s + a.score, 0) / (rated.length || 1);
+        }
       });
     }
+
+    /* ============ 玩过的游戏 ============ */
+    function renderGames() {
+      renderEntries('gameMount', 'gameHint', GAMES, {
+        empty: '还没记录游戏，去脚本里的 GAMES 数组添加吧～',
+        hint: (list) => {
+          const total = list.reduce((s, g) => s + (Number(g.hours) || 0), 0);
+        }
+      });
+    }
+
+    /* ============ 留言板（保存在浏览器本地 localStorage） ============ */
+    const BOARD_KEY = 'huluob_board_v1';
+    const BOARD_MAX = 60;
+
+    function loadBoard() {
+      try {
+        const raw = localStorage.getItem(BOARD_KEY);
+        const arr = raw ? JSON.parse(raw) : [];
+        return Array.isArray(arr) ? arr : [];
+      } catch (e) { return []; }   // 隐私模式 / JSON 损坏时当作空
+    }
+    function saveBoard(list) {
+      try { localStorage.setItem(BOARD_KEY, JSON.stringify(list)); return true; }
+      catch (e) { return false; }
+    }
+
+    function fmtTime(ts) {
+      const d = new Date(ts);
+      const p = (n) => String(n).padStart(2, '0');
+      return `${d.getFullYear()}.${p(d.getMonth() + 1)}.${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+    }
+
+    function renderBoard() {
+      const mount = document.getElementById('boardMount');
+      if (!mount) return;
+      const list = loadBoard();
+      const hint = document.getElementById('boardHint');
+
+      mount.innerHTML = '';
+      mount.style.display = '';
+
+      if (!list.length) {
+        mount.innerHTML = `<li class="entry-empty">还没有留言，来当第一个吧～<br><span style="font-size:11px">（留言只保存在你自己的浏览器里）</span></li>`;
+        if (hint) hint.textContent = '';
+        refreshScrollbars();
+        return;
+      }
+
+      if (hint) hint.textContent = `${list.length} 条 · 仅本地保存`;
+
+      // 新的在最上面
+      list.slice().reverse().forEach((m, idx) => {
+        const li = document.createElement('li');
+        li.className = 'msg-item';
+        li.style.opacity = '0';
+        li.style.transform = 'translateY(10px)';
+        li.style.transition = 'opacity 0.4s ease, transform 0.4s cubic-bezier(0.68,-0.55,0.27,1.55)';
+        li.style.transitionDelay = (idx * 0.06) + 's';
+        li.dataset.id = m.id;
+        li.innerHTML = `
+          <div class="msg-avatar">${esc((m.name || '匿名').charAt(0))}</div>
+          <div class="msg-main">
+            <div class="msg-head">${esc(m.name || '匿名')}<span class="msg-time">${esc(fmtTime(m.time))}</span></div>
+            <div class="msg-text">${esc(m.text)}</div>
+          </div>
+          <button class="msg-del" type="button" title="删除" aria-label="删除">✕</button>`;
+        mount.appendChild(li);
+      });
+
+      requestAnimationFrame(() => {
+        mount.querySelectorAll('.msg-item').forEach(el => {
+          el.style.opacity = '1'; el.style.transform = 'translateY(0)';
+        });
+        refreshScrollbars();
+      });
+      refreshScrollbars();
+    }
+
+    (function initBoard() {
+      const form   = document.getElementById('boardForm');
+      const nameEl = document.getElementById('boardName');
+      const textEl = document.getElementById('boardText');
+      const countEl = document.getElementById('boardCount');
+      const submitEl = document.getElementById('boardSubmit');
+      if (!form) return;
+
+      function syncState() {
+        const len = textEl.value.trim().length;
+        countEl.textContent = `${textEl.value.length} / 200`;
+        submitEl.disabled = len === 0;
+      }
+
+      textEl.addEventListener('input', syncState);
+      // Ctrl / Cmd + Enter 提交
+      textEl.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+          e.preventDefault();
+          form.requestSubmit ? form.requestSubmit() : form.dispatchEvent(new Event('submit'));
+        }
+      });
+
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const text = textEl.value.trim();
+        if (!text) return;
+        const list = loadBoard();
+        list.push({
+          id: Date.now() + '-' + Math.random().toString(36).slice(2, 7),
+          name: (nameEl.value.trim() || '匿名').slice(0, 16),
+          text: text.slice(0, 200),
+          time: Date.now(),
+        });
+        while (list.length > BOARD_MAX) list.shift();
+        const okSaved = saveBoard(list);
+        textEl.value = '';
+        syncState();
+        renderBoard();
+        syncPagesHeight(currentPage);
+        if (!okSaved) {
+          const h = document.getElementById('boardHint');
+          if (h) h.textContent = '浏览器不允许保存';
+        }
+      });
+
+      // 删除（事件委托）
+      document.getElementById('boardMount').addEventListener('click', (e) => {
+        const btn = e.target.closest('.msg-del');
+        if (!btn) return;
+        const li = btn.closest('.msg-item');
+        if (!li) return;
+        const id = li.dataset.id;
+        saveBoard(loadBoard().filter(m => String(m.id) !== String(id)));
+        renderBoard();
+        syncPagesHeight(currentPage);
+      });
+
+      syncState();
+    })();
 
     /* ============ 弹窗 ============ */
     const modal = document.getElementById('modal');
@@ -688,11 +1457,15 @@
       modalMask.offsetHeight;
       modal.classList.add('show');
       document.querySelector('.profile-card').classList.add('blurred');
+      topNav.classList.add('dim');
+      setTimeout(refreshScrollbars, 60);
     }
     function closeModal() {
       modalMask.classList.remove('show');
       modal.classList.remove('show');
       document.querySelector('.profile-card').classList.remove('blurred');
+      topNav.classList.remove('dim');
+      refreshScrollbars();
     }
     modalClose.addEventListener('click', closeModal);
     modalMask.addEventListener('click', closeModal);
@@ -700,14 +1473,20 @@
       if (e.key === 'Escape' && modal.classList.contains('show')) closeModal();
     });
 
-    /* ============ 主流程 ============ */
+    /* ============ 主流程：不等资源，尽快展开主页 ============ */
     (async function main() {
-      const bootDone  = bootSequence();
-      const imgLoaded = preloadImage(PROFILE_WALLPAPERS[0]);
-      PROFILE_WALLPAPERS.forEach(url => wallpaperPreloader.preload(url));
-      await Promise.all([bootDone, imgLoaded]);
-      await sleep(600);
-      await enterProfile();
+      try {
+        PROFILE_WALLPAPERS.forEach(url => wallpaperPreloader.preload(url));
+        await Promise.race([
+          preloadImage(PROFILE_WALLPAPERS[0]),
+          sleep(800)               // 兜底：壁纸再慢也不拖累入场
+        ]);
+        await enterProfile();
+      } catch (e) {
+        console.warn('main:', e);
+        await enterProfile();      // 出错也要把页面展开
+      }
+      window.__forceOpen && window.__forceOpen();
     })();
   </script>
 </body>
