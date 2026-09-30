@@ -87,7 +87,9 @@
       -webkit-clip-path: circle(0px at 50% 50%);
       transition: clip-path 0.75s cubic-bezier(0.4, 0, 0.2, 1);
       display: flex; align-items: center; justify-content: center;
-      overflow: auto;
+      /* 整页禁止滚动：内容超出时改为卡片内部滚动，
+         否则往下拖会露出壁纸层下面那圈动效，很难看 */
+      overflow: hidden;
       /* 顶部留出导航栏的空间，避免矮屏时导航压住卡片 */
       padding: 86px 16px 32px; box-sizing: border-box;
       --origin-x: 50%;
@@ -138,6 +140,12 @@
       border-radius: 24px;
       padding: 48px 40px;
       max-width: 480px; width: 90%;
+      /* box-sizing 必须加：否则 max-height 不含 48px 的上下 padding，
+         限高会算少 96px，矮屏时卡片照样顶出视口 */
+      box-sizing: border-box;
+      /* 内容再长也不撑破视口：超出部分在卡片内部滚动 */
+      max-height: calc(100vh - 118px);
+      overflow-y: auto;
       text-align: center;
       border: 1px solid var(--glass-border);
       opacity: 0;
@@ -427,7 +435,13 @@
     /* ============ 留言板（Giscus） ============ */
     .giscus-host {
       min-height: 60px;
-      /* Giscus 是 iframe，无法从外部改样式，只能靠 data-theme 控制配色 */
+      /* 留言区限高：Giscus 的 iframe 会随留言条数一路变高，
+         不设上限会把卡片撑破、甚至顶出视口。超出部分在这里局部滚动。 */
+      max-height: 320px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      /* iframe 是独立文档，内部浮层（表情面板等）需要能溢出显示 */
+      border-radius: 12px;
     }
     .giscus-host iframe { width: 100%; border: none; min-height: 340px; }
     .giscus-tip {
@@ -614,6 +628,48 @@
 
   <script>
     /* 壁纸：双击页面空白处切换（Background3 已删除，故只保留两张） */
+    /* ============ Giscus 公共留言板 ============
+       留言存在 GitHub Discussions 里，所有人可见、可回复，不依赖任何服务器。
+
+       ── 怎么拿到下面四个值（一次性操作，5 分钟搞定）──
+       1. 打开你的仓库 → Settings → 勾选 Features 里的 **Discussions**
+       2. 仓库里 Discussions → New category，名字随便（比如「留言板」），
+          类型选 **Announcement**（保证只有你和 giscus 能开新帖）
+       3. 去 https://github.com/apps/giscus 点 Install，装在你要用的仓库上
+       4. 打开 https://giscus.app/zh-CN ，在「仓库」里填 owner/repo
+          （你这里就是 huluob0721/huluob0721.github.io），
+          页面下方会自动生成 data-repo-id 和 data-category-id，复制过来即可
+
+       填好之后：留言需要登录 GitHub 才能发，没登录的人只能看。 */
+    const GISCUS = {
+      repo:       'huluob0721/huluob0721.github.io',
+      repoId:     'R_kgDOUIggbw',
+      category:   'Announcements',
+      categoryId: 'DIC_kwDOUIggb84DGvc-',
+
+      /* mapping 说明（很重要，选错了留言就对不上）：
+         pathname  → 按"页面路径"找讨论。你这站是单页，根路径的 term 会是 index，
+                     而你在 GitHub 上建的那条讨论标题是「留言板」，匹配不上，
+                     giscus 会另外新建一条，你原来那条就找不回来了。
+         number    → 直接按讨论编号加载，最稳，不受标题/域名影响 ✅ 当前用的就是这个
+         specific  → 按标题关键词找（term 填 '留言板'），也支持自动建帖
+         想换就改下面两行，并把 term 一起改掉。 */
+      mapping:    'number',
+      term:       '1',        // ← Discussion #1（即 .../discussions/1）
+
+      /* theme：可以是内置主题名，也可以是一个 CSS 文件的网址。
+         这里用的是仓库里的 giscus-theme.css —— 亮色、紫蓝主色，和网站一致，
+         并且把鼠标指针换成了本站那支箭头（iframe 内部也能用自定义指针）。
+         ⚠️ 必须把 giscus-theme.css 一起上传到仓库根目录，否则留言区会没样式。
+         不想用自定义主题的话，把下面这行改成：theme: 'light'  */
+      theme:      'https://huluob0721.github.io/giscus-theme.css',
+    };
+
+    let giscusMounted = false;
+
+
+    const DISCUSS_URL = `https://github.com/${GISCUS.repo || ''}/discussions`;
+
     const PROFILE_WALLPAPERS = [
       'https://raw.githubusercontent.com/huluob0721/huluob0721.github.io/main/Background.png',
       'https://raw.githubusercontent.com/huluob0721/huluob0721.github.io/main/Background2.png'
@@ -1003,11 +1059,17 @@
     (function initScrollbars() {
       const modal = document.getElementById('modal');
       const stage = document.getElementById('stageProfile');
+      const card  = document.getElementById('profileCard');
       setupCustomScroll(document.getElementById('newsMount'));
       setupCustomScroll(document.getElementById('animeMount'));
       setupCustomScroll(document.getElementById('gameMount'));
+      setupCustomScroll(document.getElementById('giscusHost'));   // 留言区局部滚动
+      setupCustomScroll(card, () => stage.classList.contains('open'));  // 卡片整体滚动
       setupCustomScroll(modal, () => modal.classList.contains('show'));
       setupCustomScroll(stage,  () => stage.classList.contains('open'));
+
+      // 卡片自身滚动时，内部各滚动条位置也要跟着更新
+      if (card) card.addEventListener('scroll', refreshScrollbars, { passive: true });
 
       // 外层容器滚动 / 尺寸变化时，所有滚动条都要重新定位
       stage.addEventListener('scroll', refreshScrollbars, { passive: true });
@@ -1024,15 +1086,27 @@
           const n = document.getElementById(id);
           if (n) ro.observe(n);
         });
-        // Giscus 容器：iframe 是异步插入且高度会变，必须单独盯住
+        // Giscus 容器：iframe 是异步插入的，且它的高度由 giscus 用 style 反复改写，
+        // 所以 childList + attributes 都要盯住，否则滚动条长度不会更新
         const gh = document.getElementById('giscusHost');
         if (gh) {
           ro.observe(gh);
           if (window.MutationObserver) {
-            new MutationObserver(() => {
+            const onGhChange = () => {
               syncPagesHeight(currentPage);
               syncScrollbarsFor(320);
-            }).observe(gh, { childList: true, subtree: true });
+            };
+            new MutationObserver(onGhChange)
+              .observe(gh, { childList: true, subtree: true, attributes: true, attributeFilter: ['style'] });
+            // iframe 插入后再单独盯它的高度变化
+            new MutationObserver(() => {
+              const f = gh.querySelector('iframe');
+              if (f && !f.__roWatched) {
+                f.__roWatched = true;
+                ro.observe(f);
+              }
+              onGhChange();
+            }).observe(gh, { childList: true });
           }
         }
       }
@@ -1271,45 +1345,6 @@
       });
     }
 
-    /* ============ Giscus 公共留言板 ============
-       留言存在 GitHub Discussions 里，所有人可见、可回复，不依赖任何服务器。
-
-       ── 怎么拿到下面四个值（一次性操作，5 分钟搞定）──
-       1. 打开你的仓库 → Settings → 勾选 Features 里的 **Discussions**
-       2. 仓库里 Discussions → New category，名字随便（比如「留言板」），
-          类型选 **Announcement**（保证只有你和 giscus 能开新帖）
-       3. 去 https://github.com/apps/giscus 点 Install，装在你要用的仓库上
-       4. 打开 https://giscus.app/zh-CN ，在「仓库」里填 owner/repo
-          （你这里就是 huluob0721/huluob0721.github.io），
-          页面下方会自动生成 data-repo-id 和 data-category-id，复制过来即可
-
-       填好之后：留言需要登录 GitHub 才能发，没登录的人只能看。 */
-    const GISCUS = {
-      repo:       'huluob0721/huluob0721.github.io',
-      repoId:     'R_kgDOUIggbw',
-      category:   'Announcements',
-      categoryId: 'DIC_kwDOUIggb84DGvc-',
-
-      /* mapping 说明（很重要，选错了留言就对不上）：
-         pathname  → 按"页面路径"找讨论。你这站是单页，根路径的 term 会是 index，
-                     而你在 GitHub 上建的那条讨论标题是「留言板」，匹配不上，
-                     giscus 会另外新建一条，你原来那条就找不回来了。
-         number    → 直接按讨论编号加载，最稳，不受标题/域名影响 ✅ 当前用的就是这个
-         specific  → 按标题关键词找（term 填 '留言板'），也支持自动建帖
-         想换就改下面两行，并把 term 一起改掉。 */
-      mapping:    'number',
-      term:       '1',        // ← Discussion #1（即 .../discussions/1）
-
-      /* theme：可以是内置主题名，也可以是一个 CSS 文件的网址。
-         这里用的是仓库里的 giscus-theme.css —— 亮色、紫蓝主色，和网站一致，
-         并且把鼠标指针换成了本站那支箭头（iframe 内部也能用自定义指针）。
-         ⚠️ 必须把 giscus-theme.css 一起上传到仓库根目录，否则留言区会没样式。
-         不想用自定义主题的话，把下面这行改成：theme: 'light'  */
-      theme:      'https://huluob0721.github.io/giscus-theme.css',
-    };
-
-    let giscusMounted = false;
-
     /* Giscus 在本地跑不起来（file:// 的 origin 会被服务器拒绝），
        所以本地预览时不加载，只给一条说明 + GitHub 讨论区直链。 */
     function isDeployedSite() {
@@ -1329,7 +1364,6 @@
       syncPagesHeight('board');
     }
 
-    const DISCUSS_URL = `https://github.com/${GISCUS.repo || ''}/discussions`;
 
     function mountGiscus() {
       if (giscusMounted) return false;
@@ -1371,7 +1405,7 @@
         'data-mapping': GISCUS.mapping,
         'data-reactions-enabled': '1',
         'data-emit-metadata': '0',
-        'data-input-position': 'bottom',
+        'data-input-position': 'top',
         'data-theme': GISCUS.theme,
         'data-lang': 'zh-CN',
       };
