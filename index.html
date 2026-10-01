@@ -52,10 +52,32 @@
     .q-arrow {
       position: fixed; width: 28px; height: 28px;
       pointer-events: none; z-index: 10000;
+      /* 默认不显示：页面刚打开时箭头会停在 (0,0) 或者上次的残留位置，
+         必须先检测到真实的指针输入才现身（见 .q-arrow.ready） */
+      opacity: 0;
+      transform: scale(0.6);
       transition: opacity 0.08s ease;
     }
+    /* 检测到真实鼠标输入后才显示（带一个轻微的"浮现"入场） */
+    .q-arrow.ready {
+      opacity: 1;
+      transform: scale(1);
+      transition: opacity 0.18s ease, transform 0.18s cubic-bezier(0.34, 1.4, 0.64, 1);
+    }
     /* 鼠标进入 iframe（Giscus）时交给 iframe 内部的原生 cursor，避免双箭头 */
-    .q-arrow.in-frame { opacity: 0; }
+    .q-arrow.in-frame { opacity: 0; transform: scale(0.6); }
+    /* 纯触摸设备（没有鼠标）始终不显示自定义箭头。
+       ⚠️ 必须同时把原生光标还回来，否则触屏上会一个光标都看不见 */
+    .q-arrow.no-pointer { display: none; }
+
+    /* 指针离开网页区域（移到最左侧外面、浏览器地址栏、别的窗口）时：
+       自定义箭头已经藏了，但全局 cursor:none 还挂着 —— 那就会一个光标都看不见。
+       所以离开时把系统原本的光标还回来，回来时再切回自定义箭头。
+       选择器特意加了 html.native-cursor 提高优先级，才能盖住下面那两条 !important。 */
+    html.native-cursor,
+    html.native-cursor *,
+    html.native-cursor *::before,
+    html.native-cursor *::after { cursor: auto !important; }
     .q-arrow::before {
       content: '';
       position: absolute; inset: 0;
@@ -789,8 +811,93 @@
         comment: '地图填色游戏，一局一个通宵。玩完后变战犯了......' },
     ];
 
-    /* ============ 自定义鼠标 ============ */
+    /* ============ 自定义鼠标 ============
+       只在"确实有鼠标"的时候才显示自定义箭头：
+       页面刚加载、或者用户用触屏/触控板点击时，箭头还没拿到过真实坐标，
+       这时候显示出来会停在左上角或上次残留的位置，很出戏。
+       所以先判定设备是否具备精确指针（hover: hover + pointer: fine），
+       再等第一次真实 mousemove/pointermove 才浮现。 */
     const qArrow = document.getElementById('qArrow');
+    let pointerSeen = false;
+
+    function hasFinePointer() {
+      try {
+        return window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+      } catch (e) { return true; }   // 不支持 matchMedia 就按有鼠标处理
+    }
+    (function initArrowVisibility() {
+      if (!hasFinePointer()) {
+        // 触屏：不显示自定义箭头，同时把被 cursor:none 干掉的原生光标还回来
+        qArrow.classList.add('no-pointer');
+        const st = document.createElement('style');
+        st.textContent = '*, *::before, *::after { cursor: auto !important; }';
+        document.head.appendChild(st);
+        return;
+      }
+
+      /* 初始就挂上 native-cursor：
+         页面刚打开时还不知道指针在哪（可能压根就没进过页面），
+         这时候如果直接 cursor:none + 箭头未显示，整个页面会一个光标都没有。
+         先显示系统光标，等第一次真实移动再无缝换成自定义箭头。 */
+      document.documentElement.classList.add('native-cursor');
+
+      /* 规则：系统指针在网页区域内 → 显示自定义箭头 + 隐藏系统光标；
+         指针离开网页区域（移到最左侧外面、地址栏、别的窗口、移出屏幕）
+         → 隐藏自定义箭头 + 把系统原本的光标还回来。
+         两者永远互斥，不会同时出现两个指针，也不会一个都没有。 */
+      function insideViewport(x, y) {
+        /* 必须严格在视口内：
+           浏览器在指针贴边/移出时会补发坐标为 0 或 innerWidth 的边缘 mousemove，
+           放行这些坐标就会让箭头卡在页面最左侧不消失 —— 于是"两个指针"。 */
+        return x > 1 && y > 1 && x < window.innerWidth - 1 && y < window.innerHeight - 1;
+      }
+      function show(x, y) {
+        if (x == null || y == null || !insideViewport(x, y)) return;   // 边缘/无效坐标一律不显示
+        pointerSeen = true; lastX = x; lastY = y;
+        qArrow.style.left = x + 'px'; qArrow.style.top = y + 'px';
+        qArrow.classList.add('ready');
+        document.documentElement.classList.remove('native-cursor');
+      }
+      function leave() {
+        qArrow.classList.remove('ready');
+        // 箭头藏了，就必须把系统光标还回来，否则那边一个指针都没有
+        document.documentElement.classList.add('native-cursor');
+      }
+      let lastX = null, lastY = null;
+      function restore(e) {
+        /* 指针回来了：优先用事件自带的坐标，没有（比如浏览器派发的假 enter 全 0）
+           才退回上一次的有效坐标；实在都没有就继续显示系统光标，
+           保证任何时刻都恰好有一个光标，不会空窗。 */
+        if (e && insideViewport(e.clientX, e.clientY)) { show(e.clientX, e.clientY); return; }
+        if (!pointerSeen || lastX == null || !insideViewport(lastX, lastY)) return;  // 继续用系统光标
+        show(lastX, lastY);
+      }
+
+      /* 只有真实移动才负责"显示"：
+         ⚠️ 不能用 mouseenter/pointerenter 来首次显示 —— 浏览器在页面加载完成、
+            窗口重新获得焦点时会派发一个 clientX/clientY 全是 0 的假 enter 事件，
+            照它定位就会在网页左上角凭空卡住一个箭头，看起来像多了一个指针。 */
+      document.addEventListener('mousemove', (e) => {
+        if (!insideViewport(e.clientX, e.clientY)) { leave(); return; }  // 贴到边缘就收起
+        if (!pointerSeen || !qArrow.classList.contains('ready')) show(e.clientX, e.clientY);
+      });
+      document.addEventListener('pointermove', (e) => {
+        if (e.pointerType !== 'mouse') return;
+        if (!insideViewport(e.clientX, e.clientY)) { leave(); return; }
+        if (!pointerSeen || !qArrow.classList.contains('ready')) show(e.clientX, e.clientY);
+      });
+
+      // 指针离开文档 → 收起 + 还回系统光标
+      document.addEventListener('mouseleave', leave);
+      document.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') leave(); });
+      // 兜底：mouseout 且 relatedTarget 为空，说明指针离开了窗口（最可靠的跨浏览器判定）
+      document.addEventListener('mouseout', (e) => { if (!e.relatedTarget) leave(); });
+      // 重新进入：先摘掉 native-cursor，等真实移动再显示箭头
+      document.addEventListener('mouseenter', restore);
+      document.addEventListener('pointerenter', (e) => { if (e.pointerType === 'mouse') restore(e); });
+      // 切走标签页 / 切到别的程序
+      window.addEventListener('blur', leave);
+    })();
     /* 抽出来供拖拽滚动条等场景复用（那些场景鼠标事件可能不冒泡到 document） */
     function moveArrow(x, y) {
       qArrow.style.left = x + 'px';
