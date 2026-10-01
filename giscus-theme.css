@@ -122,6 +122,33 @@ main,
                'WenQuanYi Micro Hei', sans-serif !important;
 }
 
+/* ---------- 2.5 字号：跟着站内一起放大（框架已扩到 820px） ---------- */
+html, body { font-size: 16.5px; }
+.gsc-comment-content,
+.gsc-comment-body,
+.markdown-body,
+.comment-body {
+  font-size: 16.5px !important;
+  line-height: 1.8 !important;
+}
+.gsc-comment-author,
+.gsc-comment-author-name,
+.gsc-header,
+.gsc-timeline .author { font-size: 16.5px !important; font-weight: 600 !important; }
+.gsc-comment-date,
+.gsc-comment-created-at { font-size: 14px !important; }
+button,
+.btn,
+.gsc-primary { font-size: 15.5px !important; padding: 9px 18px !important; }
+textarea,
+input[type='text'],
+input[type='url'] { font-size: 16px !important; padding: 12px 14px !important; }
+.gsc-reply-box,
+.gsc-comment-box { padding: 14px !important; }
+.gsc-comment { padding: 14px 16px !important; }
+.gsc-loading,
+.gsc-reply-notice { font-size: 15px !important; }
+
 /* ---------- 3. 形状：圆角 + 玻璃感 ---------- */
 .gsc-comment,
 .gsc-comments > .gsc-comment,
