@@ -71,13 +71,24 @@
     }
 
     /* ---------- 壁纸层 ---------- */
+    /* 壁纸层：和 PC 版 .stage-profile 完全同款的结构 ——
+       元素本身是蓝紫渐变兜底，壁纸图放在 ::before 独立层上。
+       这样图片加载失败/被墙时，::before 是透明的，
+       露出的就是渐变而不是黑屏（以前图直接设在元素上，
+       加载失败会露出 body 的 #0d1117 纯黑）。 */
     #wallpaper {
       position: fixed; inset: 0; z-index: 0;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
-      background-size: cover; background-position: center;
+      background: linear-gradient(135deg, #4c5fd7 0%, #764ba2 45%, #2b1055 100%);
+    }
+    #wallpaper::before {
+      content: '';
+      position: absolute; inset: 0;
+      background-image: var(--wall-img);
+      background-size: cover;
+      background-position: center;
       transition: opacity 0.45s ease;
     }
-    #wallpaper.switching { opacity: 0.35; }
+    #wallpaper.switching::before { opacity: 0.35; }
 
     /* ---------- 整体骨架：内容区 + 底栏 ---------- */
     .app {
@@ -495,9 +506,17 @@
       n = Number(n) || 0;
       return '★★★★★'.slice(0, n) + '☆☆☆☆☆'.slice(0, 5 - n);
     }
+    /* 状态标签配色（按语义分三组）：
+         进行中  在玩 / 在看 / 偶尔玩 / 玩了一半左右  → 粉色 playing
+         已放弃  弃坑 / 弃番                        → 灰色 dropped
+         已完成  已通关 / 已看完                    → 靛蓝（默认）
+       之前「玩了一半左右」没被匹配到，掉进了默认色，
+       于是和「已通关」显示成同一个颜色 —— 这就是颜色错的地方。 */
     function statusCls(s) {
-      if (s === '在玩' || s === '在看' || s === '偶尔玩') return 'playing';
-      if (s === '弃坑' || s === '弃番') return 'dropped';
+      s = String(s || '');
+      if (s.indexOf('在玩') >= 0 || s.indexOf('在看') >= 0 ||
+          s.indexOf('偶尔玩') >= 0 || s.indexOf('一半') >= 0) return 'playing';
+      if (s.indexOf('弃') >= 0) return 'dropped';
       return '';
     }
 
@@ -513,7 +532,8 @@
       var done = false;
       var finish = function () {
         if (done) return; done = true;
-        wallpaper.style.backgroundImage = 'url("' + url + '")';
+        // 写到 ::before 层的 CSS 变量上；图挂了就保持渐变兜底
+        wallpaper.style.setProperty('--wall-img', 'url("' + url + '")');
         wallpaper.classList.remove('switching');
       };
       img.onload = finish; img.onerror = finish;

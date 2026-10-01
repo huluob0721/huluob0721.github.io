@@ -1468,11 +1468,14 @@
         .replace(/&/g, '&amp;').replace(/</g, '&lt;')
         .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
+    /* 与移动版同一套语义分组：
+         进行中 → 粉色 / 已放弃 → 灰色 / 已完成 → 靛蓝
+       之前「偶尔玩」不以"在"开头，会掉进默认色，和「已通关」同色 */
     function statusCls(status) {
       const s = String(status || '');
-      // 进行中的都统一用粉色的"在玩/在看"样式
-      if (s.indexOf('在') === 0 || s.indexOf('一半') >= 0) return 'playing';
-      if (s.indexOf('弃') === 0) return 'dropped';
+      if (s.indexOf('在玩') >= 0 || s.indexOf('在看') >= 0 ||
+          s.indexOf('偶尔玩') >= 0 || s.indexOf('一半') >= 0) return 'playing';
+      if (s.indexOf('弃') >= 0) return 'dropped';
       return '';
     }
     function starStr(score) {
