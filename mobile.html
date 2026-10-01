@@ -36,9 +36,12 @@
     body {
       background: #0d1117;
       color: #0f172a;
-      font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB',
-                   'Microsoft YaHei', 'Source Han Sans SC', 'Noto Sans CJK SC',
-                   'WenQuanYi Micro Hei', sans-serif;
+      /* iOS 优先：SF Pro / PingFang SC，数字按系统风格渲染 */
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC',
+                   'Hiragino Sans GB', 'Microsoft YaHei', 'Source Han Sans SC',
+                   'Noto Sans CJK SC', 'WenQuanYi Micro Hei', sans-serif;
+      font-feature-settings: 'kern' 1;
+      text-rendering: optimizeLegibility;
       /* 禁止长按选中/弹菜单，避免误触；输入框单独放开 */
       -webkit-user-select: none; user-select: none;
       -webkit-tap-highlight-color: transparent;
@@ -58,7 +61,8 @@
       position: relative; z-index: 1;
       height: 100dvh;
       display: flex; flex-direction: column;
-      padding-top: var(--safe-t);
+      /* iOS 状态栏 / 灵动岛下方留一点呼吸空间 */
+      padding-top: calc(var(--safe-t) + 8px);
     }
     @supports not (height: 100dvh) {
       .app { height: 100vh; }
@@ -71,7 +75,8 @@
       overflow-x: hidden;
       -webkit-overflow-scrolling: touch;
       overscroll-behavior-y: contain;
-      padding: 0 16px calc(var(--tabbar-h) + var(--safe-b) + 20px);
+      /* 底栏是浮动胶囊，留白要把它整块让出来（含安全区） */
+      padding: 0 16px calc(var(--tabbar-h) + var(--safe-b) + 34px);
     }
     /* 原生滚动条在移动端本来就很细，直接隐藏更干净 */
     .viewport::-webkit-scrollbar { display: none; }
@@ -80,13 +85,16 @@
     /* ---------- 玻璃卡片 ---------- */
     .card {
       background: var(--glass-bg);
-      backdrop-filter: blur(14px) saturate(150%);
-      -webkit-backdrop-filter: blur(14px) saturate(150%);
+      backdrop-filter: blur(18px) saturate(180%);
+      -webkit-backdrop-filter: blur(18px) saturate(180%);
       border: 1px solid var(--glass-border);
-      border-radius: 22px;
+      /* iOS 的连续圆角观感，配合顶部一道内侧高光 */
+      border-radius: 26px;
       padding: 26px 20px;
       margin-top: 14px;
-      box-shadow: 0 8px 28px rgba(15, 23, 42, 0.14);
+      box-shadow: 0 8px 28px rgba(15, 23, 42, 0.14),
+                  0 0 0 0.5px rgba(255,255,255,0.55) inset,
+                  0 1px 0 rgba(255,255,255,0.75) inset;
     }
 
     /* ---------- 主页 ---------- */
@@ -110,19 +118,6 @@
     .bio p { margin-bottom: 8px; }
     .bio p:last-child { margin-bottom: 0; }
 
-    .view-switch {
-      margin-top: 20px; padding-top: 14px;
-      border-top: 1px solid rgba(255,255,255,0.55);
-      text-align: center;
-    }
-    .view-switch a {
-      display: inline-block; padding: 8px 16px;   /* 触摸目标够大 */
-      font-size: 13.5px; font-weight: 600; color: #4f46e5;
-      text-decoration: none; border-radius: 999px;
-      background: rgba(102,126,234,0.12);
-    }
-    .view-switch a:active { background: rgba(102,126,234,0.24); }
-
     /* ---------- 区块标题 ---------- */
     .section-title {
       font-size: 17px; font-weight: 700; color: #3730a3;
@@ -135,12 +130,15 @@
     .list { display: flex; flex-direction: column; gap: 11px; }
     .item {
       display: flex; align-items: flex-start; gap: 13px;
-      padding: 13px 14px; border-radius: 14px;
+      padding: 13px 14px; border-radius: 18px;
       background: var(--glass-bg);
       border: 1px solid var(--glass-border);
       text-align: left;
+      transition: transform 0.22s cubic-bezier(0.34, 1.4, 0.64, 1),
+                  background 0.2s ease;
     }
-    .item:active { background: var(--glass-bg-hover); transform: scale(0.985); }
+    /* iOS 的按压反馈：轻微缩小 + 回弹 */
+    .item:active { background: var(--glass-bg-hover); transform: scale(0.97); }
     .item-cover {
       flex-shrink: 0; width: 52px; height: 72px; border-radius: 10px;
       background: linear-gradient(135deg, #667eea, #764ba2);
@@ -180,29 +178,49 @@
     }
     .board-hint a { color: #4f46e5; text-decoration: none; -webkit-user-select: all; user-select: all; }
 
-    /* ---------- 底部标签栏 ---------- */
+    /* ---------- 底部标签栏 ----------
+       和 PC 版顶部导航是同一套视觉语言：浮动玻璃胶囊 + 紫蓝渐变滑块指示器，
+       只是挪到底部、改成图标在上文字在下，以契合 iOS 的操作习惯。 */
     .tabbar {
-      position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
-      height: calc(var(--tabbar-h) + var(--safe-b));
-      padding-bottom: var(--safe-b);
-      display: flex; align-items: stretch;
-      background: rgba(255,255,255,0.72);
-      backdrop-filter: blur(18px) saturate(160%);
-      -webkit-backdrop-filter: blur(18px) saturate(160%);
-      border-top: 1px solid rgba(255,255,255,0.9);
-      box-shadow: 0 -2px 16px rgba(15,23,42,0.08);
+      position: fixed; z-index: 50;
+      left: 12px; right: 12px;
+      bottom: calc(10px + var(--safe-b));
+      padding: 6px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.30);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      border: 1px solid rgba(255, 255, 255, 0.85);
+      box-shadow: 0 10px 28px rgba(15, 23, 42, 0.18),
+                  0 0 0 0.5px rgba(255,255,255,0.6) inset;
+    }
+    .tabbar-inner { position: relative; display: flex; align-items: center; gap: 2px; }
+
+    /* 滑块：与 PC 版 .nav-indicator 完全同款 */
+    .tab-indicator {
+      position: absolute; top: 0; left: 0;
+      height: 100%; width: 0;
+      border-radius: 999px;
+      background: linear-gradient(135deg, rgba(102,126,234,0.88), rgba(118,75,162,0.88));
+      box-shadow: 0 4px 14px rgba(102, 126, 234, 0.45);
+      transition: transform 0.42s cubic-bezier(0.34, 1.4, 0.64, 1),
+                  width 0.42s cubic-bezier(0.34, 1.4, 0.64, 1);
+      z-index: 0;
     }
     .tab {
-      flex: 1; border: none; background: none;
+      position: relative; z-index: 1;
+      flex: 1; border: none; background: transparent;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
-      gap: 3px; padding: 6px 2px;
+      gap: 2px; padding: 7px 2px;
+      border-radius: 999px;
       font-family: inherit; font-size: 11px; font-weight: 600;
-      color: #64748b; letter-spacing: 0.2px;
-      transition: color 0.2s ease;
+      color: #312e81; letter-spacing: 0.2px;
+      transition: color 0.28s ease, transform 0.2s ease;
+      min-height: 48px;                 /* iOS 建议的触摸目标尺寸 */
     }
-    .tab .ico { font-size: 19px; line-height: 1; }
-    .tab.active { color: #4f46e5; }
-    .tab:active { background: rgba(102,126,234,0.10); }
+    .tab .ico { font-size: 18px; line-height: 1; }
+    .tab.active { color: #fff; }
+    .tab:active { transform: scale(0.94); }
 
     /* ---------- 下拉换壁纸 ---------- */
     .pull-hint {
@@ -229,7 +247,7 @@
       background: rgba(255,255,255,0.9);
       backdrop-filter: blur(20px) saturate(160%);
       -webkit-backdrop-filter: blur(20px) saturate(160%);
-      border-radius: 24px 24px 0 0;
+      border-radius: 34px 34px 0 0;
       border-top: 1px solid rgba(255,255,255,0.9);
       padding: 10px 22px calc(26px + var(--safe-b));
       transform: translateY(100%);
@@ -238,8 +256,9 @@
     }
     .sheet.show { transform: translateY(0); }
     .sheet-grab {
-      width: 40px; height: 4px; border-radius: 2px;
-      background: rgba(15,23,42,0.22); margin: 0 auto 14px; flex-shrink: 0;
+      width: 38px; height: 5px; border-radius: 3px;
+      background: rgba(15,23,42,0.20); margin: 0 auto 14px; flex-shrink: 0;
+      cursor: pointer;
     }
     .sheet-body { overflow-y: auto; -webkit-overflow-scrolling: touch; }
     .sheet-date {
@@ -282,10 +301,10 @@
     }
     #boot.gone { opacity: 0; pointer-events: none; }
     #boot .dot {
-      width: 34px; height: 34px; border-radius: 50%;
-      border: 3px solid rgba(255,255,255,0.2);
-      border-top-color: #667eea;
-      animation: spin 0.8s linear infinite;
+      width: 30px; height: 30px; border-radius: 50%;
+      border: 2.5px solid rgba(255,255,255,0.18);
+      border-top-color: #a5b4fc;
+      animation: spin 0.9s cubic-bezier(0.4, 0, 0.2, 1) infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -314,9 +333,6 @@
           <h2 class="nickname">胡萝卜</h2>
           <p class="subtitle">高一学生 · 编程 / 看番 / 打游戏</p>
           <div class="bio" id="bio"></div>
-          <div class="view-switch">
-            <a href="index.html?view=pc">切换到桌面版 ›</a>
-          </div>
         </div>
       </section>
 
@@ -358,11 +374,14 @@
 
   <!-- 底部标签栏 -->
   <nav class="tabbar" id="tabbar">
-    <button class="tab active" data-page="home"><span class="ico">🏠</span><span>主页</span></button>
-    <button class="tab" data-page="anime"><span class="ico">📺</span><span>看过的番</span></button>
-    <button class="tab" data-page="game"><span class="ico">🎮</span><span>游戏</span></button>
-    <button class="tab" data-page="board"><span class="ico">💬</span><span>留言板</span></button>
-    <button class="tab" data-page="news"><span class="ico">✨</span><span>动态</span></button>
+    <div class="tabbar-inner">
+      <div class="tab-indicator" id="tabIndicator"></div>
+      <button class="tab active" data-page="home"><span class="ico">🏠</span><span>主页</span></button>
+      <button class="tab" data-page="anime"><span class="ico">📺</span><span>番剧</span></button>
+      <button class="tab" data-page="game"><span class="ico">🎮</span><span>游戏</span></button>
+      <button class="tab" data-page="board"><span class="ico">💬</span><span>留言</span></button>
+      <button class="tab" data-page="news"><span class="ico">✨</span><span>动态</span></button>
+    </div>
   </nav>
 
   <!-- 动态详情抽屉 -->
@@ -561,8 +580,18 @@
     var current = 'home';
     var viewport = document.getElementById('viewport');
 
+    /* 滑块指示器：和 PC 版顶部导航同款，跟着当前栏目滑动 */
+    var indicator = document.getElementById('tabIndicator');
+    function moveIndicator(name) {
+      var t = document.querySelector('.tab[data-page="' + name + '"]');
+      if (!t || !indicator) return;
+      indicator.style.width = t.offsetWidth + 'px';
+      indicator.style.transform = 'translateX(' + t.offsetLeft + 'px)';
+    }
+
     function goTo(name) {
-      if (PAGES.indexOf(name) < 0 || name === current) return;
+      if (PAGES.indexOf(name) < 0) return;
+      if (name === current) { moveIndicator(name); return; }
       current = name;
       document.querySelectorAll('.page').forEach(function (p) {
         p.classList.toggle('active', p.dataset.page === name);
@@ -570,9 +599,17 @@
       document.querySelectorAll('.tab').forEach(function (t) {
         t.classList.toggle('active', t.dataset.page === name);
       });
+      moveIndicator(name);
       viewport.scrollTop = 0;
       if (name === 'board') mountGiscus();
     }
+    // 首次定位 + 屏幕旋转/尺寸变化后重新对位
+    function syncIndicator() { moveIndicator(current); }
+    syncIndicator();
+    window.addEventListener('resize', syncIndicator);
+    window.addEventListener('orientationchange', function () {
+      setTimeout(syncIndicator, 250);
+    });
     document.getElementById('tabbar').addEventListener('click', function (e) {
       var t = e.target.closest ? e.target.closest('.tab') : null;
       if (t) goTo(t.dataset.page);
