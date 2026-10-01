@@ -52,7 +52,7 @@
     .q-arrow {
       position: fixed; width: 28px; height: 28px;
       pointer-events: none; z-index: 10000;
-      transition: opacity 0.12s ease;
+      transition: opacity 0.08s ease;
     }
     /* 鼠标进入 iframe（Giscus）时交给 iframe 内部的原生 cursor，避免双箭头 */
     .q-arrow.in-frame { opacity: 0; }
@@ -846,6 +846,10 @@
     function setArrowOverFrame(on) {
       qArrow.classList.toggle(ARROW_IN_FRAME, !!on);
     }
+    function giscusIframe() {
+      const host = document.getElementById('giscusHost');
+      return host ? host.querySelector('iframe') : null;
+    }
     /* 留言区容器的"可见矩形"（再与卡片取交集，卡片滚动时容器可能被裁） */
     function boardRect() {
       const host = document.getElementById('giscusHost');
@@ -866,39 +870,91 @@
       }
       return r;
     }
-    /* 按坐标判断，带"鼠标速度补偿"：
+    /* iframe 内的光标是否已经"真的能用"了。
+       ⚠️ 这是修"指针凭空消失一秒"的关键：
+       giscus 的 iframe 在加载完成前是空白的（它自己还设了 opacity:0），
+       此时 iframe 内的 PNG 光标还没生效。如果这时候就把 JS 箭头藏掉，
+       那块区域就既没有 JS 箭头、也没有 iframe 光标 —— 指针整整消失一秒。
+       所以：iframe 没就绪就绝不隐藏 JS 箭头，让它先顶着。 */
+    function frameReady() {
+      const f = giscusIframe();
+      if (!f) return false;
+      // giscus 自己会在加载完成时摘掉这个类
+      if (f.classList.contains('giscus-frame--loading')) return false;
+      if (!f.getAttribute('src')) return false;
+      return true;
+    }
+
+    let lastMX = null, lastMY = null;
+    let frameHover = false;   // 浏览器明确告知"鼠标在 iframe 内"
+
+    function updateArrowState(pad) {
+      const r = boardRect();
+      if (!r || !frameReady()) { setArrowOverFrame(false); return; }  // 未就绪 → 继续显示
+      const p = pad == null ? 8 : pad;
+      const inside = lastMX != null &&
+        lastMX >= r.left - p && lastMX <= r.right + p &&
+        lastMY >= r.top  - p && lastMY <= r.bottom + p;
+      setArrowOverFrame(frameHover || inside);
+    }
+
+    /* 坐标判断 + 鼠标速度补偿：
        父文档在 iframe 内收不到任何事件，鼠标又可能快速划过——
        最后一个 mousemove 还停在边界外几十上百像素处，箭头就不会隐藏，
        于是帧内一支 + 帧外卡一支，两个箭头打架。
        用相邻两次 mousemove 的间距外扩判定区，正好覆盖这种情况；
        慢速移动时补偿只有几像素，不会误判。 */
-    let lastMX = null, lastMY = null;
     function syncArrowOverFrame(x, y) {
-      const r = boardRect();
-      if (!r) { setArrowOverFrame(false); lastMX = x; lastMY = y; return; }
-      let pad = 6;
-      if (lastMX != null) {
-        const d = Math.hypot(x - lastMX, y - lastMY);
-        pad = Math.max(6, Math.min(120, d + 6));
-      }
-      setArrowOverFrame(x >= r.left - pad && x <= r.right + pad &&
-                        y >= r.top  - pad && y <= r.bottom + pad);
+      const prevX = lastMX, prevY = lastMY;
       lastMX = x; lastMY = y;
+      const r = boardRect();
+      let pad = 8;
+      if (prevX != null) pad = Math.max(8, Math.min(120, Math.hypot(x - prevX, y - prevY) + 8));
+      /* 只有在坐标"明确落在留言区之外"时才清除 frameHover。
+         ⚠️ 修"在 giscus 里点一下，原来的箭头就冒出来"：
+         点击 iframe 后浏览器偶尔会给父文档补发一个坐标仍在区内的 mousemove，
+         盲目清除 frameHover 就会让 JS 箭头复活、和 iframe 内的光标打起来。 */
+      if (!r || x < r.left - pad || x > r.right + pad ||
+                y < r.top  - pad || y > r.bottom + pad) {
+        frameHover = false;
+      }
+      updateArrowState(pad);
     }
-    /* 主机制：iframe 元素自身的 mouseover / mouseout —— 跨越边界瞬间触发，
-       与鼠标移动速度无关，彻底杜绝"两个箭头打架" */
+
+    // 跨越 iframe 边界的瞬间触发，与移动速度无关
     document.addEventListener('mouseover', (e) => {
-      const t = e.target;
-      if (t && t.tagName === 'IFRAME') setArrowOverFrame(true);
+      if (e.target && e.target.tagName === 'IFRAME') { frameHover = true; updateArrowState(8); }
     }, true);
     document.addEventListener('mouseout', (e) => {
-      const t = e.target;
-      if (t && t.tagName === 'IFRAME') setArrowOverFrame(false);
+      // 清掉也无妨：坐标还在区内的话 updateArrowState 会继续判定为隐藏
+      if (e.target && e.target.tagName === 'IFRAME') { frameHover = false; updateArrowState(8); }
     }, true);
-    // 窗口失焦（切到别的程序）时恢复，避免箭头卡在隐藏状态。
-    // 注意：这里不能用 document 的 mouseleave + capture —— mouseleave 不冒泡，
-    // 加了 capture 会把所有后代元素的 mouseleave 都收进来，导致误判恢复。
-    window.addEventListener('blur', () => setArrowOverFrame(false));
+    window.addEventListener('blur', () => { frameHover = false; updateArrowState(8); });
+
+    /* iframe 状态变化（首次加载完成、giscus 因登录/换会话重建 iframe）时重算一次，
+       保证"空白期显示 JS 箭头 / 就绪后交棒给 iframe 光标"始终同步 */
+    (function watchGiscusFrame() {
+      const host = document.getElementById('giscusHost');
+      if (!host || !window.MutationObserver) return;
+      const onAny = () => updateArrowState(8);
+      const mo = new MutationObserver(onAny);
+      mo.observe(host, { childList: true, subtree: true,
+                         attributes: true, attributeFilter: ['class', 'src', 'style'] });
+      // 换掉整个 iframe 时重新挂 load 监听
+      new MutationObserver(() => {
+        const f = giscusIframe();
+        if (f && !f.__arrowWatched) {
+          f.__arrowWatched = true;
+          f.addEventListener('load', () => setTimeout(onAny, 0));
+        }
+        onAny();
+      }).observe(host, { childList: true });
+      const f0 = giscusIframe();
+      if (f0 && !f0.__arrowWatched) {
+        f0.__arrowWatched = true;
+        f0.addEventListener('load', () => setTimeout(onAny, 0));
+      }
+    })();
 
     const HEART_COLORS = ['#ff6b81', '#ff4757', '#ff3838', '#ff9ff3', '#f368e0', '#ee5a24'];
     document.addEventListener('click', (e) => {
@@ -1533,8 +1589,26 @@
     }
 
     /* 首次切到留言板时才加载，避免一进站就多一个请求 */
+    /* 提前把 giscus 主题 CSS 预热到 HTTP 缓存里。
+       iframe 内部是靠这个 CSS 才有自定义箭头的，如果等 iframe 现去请求，
+       加载那一瞬间区内没有光标 —— 就是"指针消失一秒"的根源之一。
+       父页面先请求一次，iframe 再要同一个 URL 就直接命中缓存，几乎零延迟。 */
+    function preloadGiscusTheme() {
+      if (preloadGiscusTheme.done) return;
+      preloadGiscusTheme.done = true;
+      const href = GISCUS.theme;
+      if (!href || !/^https?:/.test(href)) return;   // 内置主题名不用预热
+      try {
+        const l = document.createElement('link');
+        l.rel = 'preload'; l.as = 'style'; l.href = href;
+        l.crossOrigin = 'anonymous';
+        document.head.appendChild(l);
+      } catch (e) { /* 预热失败无所谓，不影响功能 */ }
+    }
+
     function ensureBoardLoaded(name) {
       if (name !== 'board') return;
+      preloadGiscusTheme();
       mountGiscus();
       syncPagesHeight('board');
     }
