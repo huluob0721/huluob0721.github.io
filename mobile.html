@@ -96,7 +96,10 @@
       flex: 1;
       overflow-y: auto;
       overflow-x: hidden;
-      -webkit-overflow-scrolling: touch;
+      /* ⚠️ 千万别加 -webkit-overflow-scrolling: touch：
+         它会为滚动容器创建一个独立的矩形合成层，在 iOS 上和 backdrop-filter
+         打架，表现为内容区四周出现方形的黑色残影框。
+         iOS 13+ 惯性滚动本来就是默认行为，不需要这个属性。 */
       overscroll-behavior-y: contain;
       /* 底栏是浮动胶囊，留白要把它整块让出来（含安全区） */
       padding: 0 16px calc(var(--tabbar-h) + var(--safe-b) + 34px);
@@ -114,8 +117,11 @@
       border-radius: 26px;
       padding: 26px 20px;
       margin-top: 14px;
-      box-shadow: 0 8px 28px rgba(15, 23, 42, 0.14),
-                  0 1px 0 rgba(255,255,255,0.6) inset;
+      /* ⚠️ 完全不写 box-shadow，和 PC 版 .profile-card 一致。
+         原因：卡片背景是半透明的(0.22)，任何外阴影都会**透过卡片自身**显形，
+         在暗色壁纸上就是一圈黑框（圆角处最明显）；
+         inset 阴影同样会和 backdrop-filter 抢渲染，iOS 上容易出边缘残影。
+         玻璃的边缘靠 1px 白色 border 勾勒就够了。 */
     }
 
     /* ---------- 主页 ---------- */
@@ -222,8 +228,7 @@
       backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
       -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
       border: 1px solid rgba(255, 255, 255, 0.85);
-      box-shadow: 0 10px 28px rgba(15, 23, 42, 0.18),
-                  0 1px 0 rgba(255,255,255,0.6) inset;
+      box-shadow: 0 10px 28px rgba(15, 23, 42, 0.18);
     }
     .tabbar-inner { position: relative; display: flex; align-items: center; gap: 2px; }
 
@@ -271,8 +276,6 @@
       border-radius: 34px 34px 0 0;
       border: 1px solid var(--glass-border);
       border-bottom: none;
-      box-shadow: 0 -8px 32px rgba(15, 23, 42, 0.16),
-                  0 1px 0 rgba(255,255,255,0.6) inset;
       padding: 10px 22px calc(26px + var(--safe-b));
       transform: translateY(100%);
       transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
@@ -284,7 +287,7 @@
       background: rgba(15,23,42,0.20); margin: 0 auto 14px; flex-shrink: 0;
       cursor: pointer;
     }
-    .sheet-body { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    .sheet-body { overflow-y: auto; }
     .sheet-date {
       display: inline-block; font-size: 12.5px; font-weight: 700;
       color: #667eea; background: rgba(102,126,234,0.14);
@@ -309,12 +312,58 @@
       100% { opacity: 0; transform: translate(-50%, -170%) scale(1.35); }
     }
 
-    /* ---------- 切页动效 ---------- */
-    .page { display: none; }
-    .page.active { display: block; animation: pageIn 0.26s ease; }
-    @keyframes pageIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to   { opacity: 1; transform: translateY(0); }
+    /* ---------- 切页动效 ----------
+       原来用 display:none → block + animation，每次切换都要重新触发布局和动画，
+       所以能看到"重新渲染"的过程（内容先塌下去再长出来、还会闪一下）。
+
+       现在：五个页面**始终渲染、绝对定位叠放**，切换只改 opacity / transform
+       （纯合成层属性，不触发重排），容器高度单独做平滑过渡。
+       这样切页是"两个已渲染好的画面交叉淡入淡出"，没有渲染过程。 */
+    /* ⚠️ 这里刻意【不做高度过渡】。
+       之前给容器加了 height 过渡 + overflow:hidden：过渡的那 0.28 秒里
+       容器高度小于页面高度，卡片底部被直角裁掉 —— 就是那个"方形的残影框"。
+       现在高度直接瞬时设成当前页高度，裁剪边界始终和内容一致，不会裁到内容。 */
+    .pages {
+      position: relative;
+      /* 非激活页是 absolute，本来撑不高容器；这里裁剪是为了防止它们把
+         viewport 的 scrollHeight 撑大（absolute 元素会计入滚动高度） */
+      overflow: hidden;
+    }
+
+    /* ⚠️ 切页【只做位移，完全不碰 opacity】。
+       原因：opacity < 1 会让元素变成"背景根(backdrop root)"，
+       卡片的毛玻璃在这瞬间采样不到身后的壁纸，就会发黑。
+       所以宁可放弃淡入淡出，也要把玻璃框彻底做干净。
+
+       所有 opacity 相关的坑一并列出（都不要碰）：
+         1) opacity 过渡 —— 上面说的，会短暂形成背景根；
+         2) will-change: opacity —— 永久形成背景根；
+         3) visibility:hidden —— WebKit 上 backdrop-filter 仍可能参与合成；
+         4) 容器 height 过渡 + overflow:hidden —— 过渡期间直角裁切。
+       位移(transform)不影响毛玻璃采样，是唯一安全的过渡方式。 */
+    .page {
+      position: absolute; top: 0; left: 0; width: 100%;
+      /* 非激活：opatity 直接 0，且【不给 opacity 过渡】。
+         静态的 opacity:0 不会让"看得见的内容"发黑（它本身就不可见）；
+         关键是切换要瞬时，绝不能经过 0<opacity<1 的中间态 ——
+         那个中间态会形成背景根，正是黑框的根源。 */
+      opacity: 0;
+      transform: translateY(14px);
+      pointer-events: none;
+      /* 只过渡 transform：位移不影响毛玻璃采样，是唯一安全的动画方式 */
+      transition: transform 0.26s cubic-bezier(0.34, 1.3, 0.64, 1);
+    }
+    .page.active {
+      opacity: 1;
+      transform: none;
+      pointer-events: auto;
+    }
+    /* 非激活页毛玻璃卸掉：反正已经挪出可视区，
+       避免它们在 iOS 上作为 backdrop-filter 图层参与合成留下矩形残影 */
+    .page:not(.active) .card,
+    .page:not(.active) .item {
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
     }
 
     /* ---------- 首次入场 ---------- */
@@ -345,6 +394,7 @@
 
   <div class="app">
     <div class="viewport" id="viewport">
+      <div class="pages" id="pages">
 
       <!-- 主页 -->
       <section class="page active" data-page="home">
@@ -392,6 +442,7 @@
         </div>
       </section>
 
+      </div>
     </div>
   </div>
 
@@ -609,6 +660,16 @@
     var current = 'home';
     var viewport = document.getElementById('viewport');
 
+    /* 容器高度同步：页面是绝对定位叠放的，容器高度要手动跟着当前页走。
+       首次设置不带动画（否则会从 0 一路涨上来，反而像渲染过程）。 */
+    var pagesWrap = document.getElementById('pages');
+    function syncPagesHeight() {
+      if (!pagesWrap) return;
+      var target = document.querySelector('.page.active');
+      if (!target) return;
+      pagesWrap.style.height = target.offsetHeight + 'px';
+    }
+
     /* 滑块指示器：和 PC 版顶部导航同款，跟着当前栏目滑动 */
     var indicator = document.getElementById('tabIndicator');
     function moveIndicator(name) {
@@ -629,6 +690,7 @@
         t.classList.toggle('active', t.dataset.page === name);
       });
       moveIndicator(name);
+      syncPagesHeight();
       viewport.scrollTop = 0;
       if (typeof closeSheet === 'function') closeSheet();   // 切栏目时收起抽屉
       if (name === 'board') mountGiscus();
@@ -636,8 +698,23 @@
     // 首次定位 + 屏幕旋转/尺寸变化后重新对位
     function syncIndicator() { moveIndicator(current); }
     syncIndicator();
-    window.addEventListener('load', syncIndicator);        // 字体/图片加载完布局会变
-    window.addEventListener('resize', syncIndicator);
+    syncPagesHeight();
+    window.addEventListener('load', function () {
+      syncIndicator(); syncPagesHeight();
+    });
+    window.addEventListener('resize', function () {
+      syncIndicator(); syncPagesHeight();
+    });
+    // 留言板 iframe 高度是 giscus 自己反复改写的，必须盯着才能保持容器贴合
+    (function watchGiscusHeight() {
+      var host = document.getElementById('giscusHost');
+      if (!host) return;
+      if (typeof ResizeObserver === 'function') {
+        new ResizeObserver(function () { syncPagesHeight(); }).observe(host);
+      }
+      new MutationObserver(function () { syncPagesHeight(); })
+        .observe(host, { childList: true, subtree: true, attributes: true, attributeFilter: ['style'] });
+    })();
     window.addEventListener('orientationchange', function () {
       setTimeout(syncIndicator, 250);
     });
@@ -705,23 +782,28 @@
     })();
 
     /* ================= 双击换壁纸 =================
-       和桌面版的"双击页面空白处换壁纸"是同一个操作，只是移动端用双击手势。
-       ⚠️ 前提：html/body 上加了 touch-action: manipulation，
-       否则 iOS Safari 会把它当成双击缩放吃掉（user-scalable=no 在 iOS 上无效）。
+       和桌面版完全一致：只有点在**壁纸背景**上才换，点在卡片/底栏等界面上不换。
+       （桌面版排除的是 .profile-card，这里对应的就是 .card）
 
-       排除交互元素：底栏、抽屉、链接、列表条目（条目自己有点击动作）、
-       留言板 iframe（那边有自己的点击逻辑）。 */
+       ⚠️ 前提：html/body 上加了 touch-action: manipulation，
+       否则 iOS Safari 会把它当成双击缩放吃掉（user-scalable=no 在 iOS 上无效）。 */
     (function doubleTapWallpaper() {
       var lastTapTime = 0, lastTapX = 0, lastTapY = 0;
       var TAP_GAP = 320;      // 两次点击间隔上限
       var TAP_SLOP = 34;      // 两次点击位移上限
 
+      /* 命中的是不是"壁纸本身"：
+         卡片、底栏、抽屉、链接、留言板 iframe、按钮都不算，
+         只有落在这些之外（也就是露出来的壁纸背景）才算。 */
+      function isOnWallpaper(target) {
+        if (!target || !target.closest) return false;
+        return !target.closest('.card, .tabbar, .sheet, .sheet-mask, a, iframe, .giscus-host, button');
+      }
+
       document.addEventListener('touchend', function (e) {
         var t = (e.changedTouches && e.changedTouches[0]);
         if (!t) return;
-        // 只排除真正有自己动作的：底栏、抽屉、动态条目（会打开详情）、链接、留言板 iframe
-        if (e.target.closest && e.target.closest(
-              '.tabbar, .sheet, .sheet-mask, #newsList .item, a, iframe, .giscus-host, button')) return;
+        if (!isOnWallpaper(e.target)) { lastTapTime = 0; return; }   // 点在界面上 → 重置，不换
 
         var now = Date.now();
         var dx = t.clientX - lastTapX, dy = t.clientY - lastTapY;
