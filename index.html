@@ -876,6 +876,24 @@
        此时 iframe 内的 PNG 光标还没生效。如果这时候就把 JS 箭头藏掉，
        那块区域就既没有 JS 箭头、也没有 iframe 光标 —— 指针整整消失一秒。
        所以：iframe 没就绪就绝不隐藏 JS 箭头，让它先顶着。 */
+    /* 鼠标是否停在某根可见的自定义滚动条上（含 ::before 左右各 12px 命中区）。
+       ⚠️ 这是修"留言板滚动条上没有指针"的关键：
+       全局有 cursor:none，滚动条又是挂在 body 上的 DOM、不在 .giscus-host 里，
+       拿不到留言区那支 PNG 光标；同时它紧贴容器右边缘，
+       会被"速度补偿"外扩的判定区误判成"在留言区内"，把 JS 箭头也藏掉——
+       于是原生箭头没有、JS 箭头也没有，指针彻底消失。
+       滚动条是主文档的 DOM，JS 箭头本来就该显示，这里强制放行。 */
+    function overScrollbar(x, y) {
+      if (x == null || y == null) return false;
+      const tracks = document.querySelectorAll('.cs-track.show');
+      for (let i = 0; i < tracks.length; i++) {
+        const r = tracks[i].getBoundingClientRect();
+        if (r.width <= 0) continue;
+        if (x >= r.left - 12 && x <= r.right + 12 && y >= r.top && y <= r.bottom) return true;
+      }
+      return false;
+    }
+
     function frameReady() {
       const f = giscusIframe();
       if (!f) return false;
@@ -889,6 +907,10 @@
     let frameHover = false;   // 浏览器明确告知"鼠标在 iframe 内"
 
     function updateArrowState(pad) {
+      // 滚动条上 / 正在拖动滚动条 → 强制显示 JS 箭头（它是主文档 DOM，本来就该显示）
+      if (overScrollbar(lastMX, lastMY) || document.querySelector('.cs-track.dragging')) {
+        setArrowOverFrame(false); return;
+      }
       const r = boardRect();
       if (!r || !frameReady()) { setArrowOverFrame(false); return; }  // 未就绪 → 继续显示
       const p = pad == null ? 8 : pad;
@@ -914,8 +936,9 @@
          ⚠️ 修"在 giscus 里点一下，原来的箭头就冒出来"：
          点击 iframe 后浏览器偶尔会给父文档补发一个坐标仍在区内的 mousemove，
          盲目清除 frameHover 就会让 JS 箭头复活、和 iframe 内的光标打起来。 */
-      if (!r || x < r.left - pad || x > r.right + pad ||
-                y < r.top  - pad || y > r.bottom + pad) {
+      if (!overScrollbar(x, y) &&
+          (!r || x < r.left - pad || x > r.right + pad ||
+                 y < r.top  - pad || y > r.bottom + pad)) {
         frameHover = false;
       }
       updateArrowState(pad);
