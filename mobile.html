@@ -7,7 +7,22 @@
   <meta name="theme-color" content="#0d1117">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/huluob0721/huluob0721.github.io/main/zozlogo.png">
+  <!-- 地址栏 / 标签页图标：
+       iOS Safari 主要认 apple-touch-icon（加到主屏幕、地址栏都用它），
+       光有 favicon 在手机上会显示空白。 -->
+  <link rel="icon" type="image/png" sizes="32x32" href="https://raw.githubusercontent.com/huluob0721/huluob0721.github.io/main/zozlogo.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="https://raw.githubusercontent.com/huluob0721/huluob0721.github.io/main/zozlogo.png">
+  <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/huluob0721/huluob0721.github.io/main/zozlogo.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="https://raw.githubusercontent.com/huluob0721/huluob0721.github.io/main/zozlogo.png">
+
+  <!-- 分享 / 预览卡片（微信、QQ、Safari 都会读） -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="胡萝卜的个人博客">
+  <meta property="og:description" content="高一学生 · 编程 / 看番 / 打游戏">
+  <meta property="og:image" content="https://raw.githubusercontent.com/huluob0721/huluob0721.github.io/main/zozlogo.png">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:image" content="https://raw.githubusercontent.com/huluob0721/huluob0721.github.io/main/zozlogo.png">
+
   <title>胡萝卜的个人博客</title>
 
   <!-- 设备分流：万一是电脑打开了这个页面，自动送回 PC 版 -->
@@ -16,9 +31,13 @@
   <style>
     /* ---------- 基础 ---------- */
     :root {
-      --glass-bg:       rgba(255, 255, 255, 0.26);
-      --glass-bg-hover: rgba(255, 255, 255, 0.38);
-      --glass-border:   rgba(255, 255, 255, 0.85);
+      /* 与 PC 版完全一致的玻璃参数：blur 只有 4px，
+         之前这里用了 18px，糊得比 PC 版厉害太多。 */
+      --glass-bg:       rgba(255, 255, 255, 0.22);
+      --glass-bg-hover: rgba(255, 255, 255, 0.32);
+      --glass-blur:     4px;
+      --glass-saturate: 140%;
+      --glass-border:   rgba(255, 255, 255, 0.8);
       --tabbar-h:       62px;
       --safe-b:         env(safe-area-inset-bottom, 0px);
       --safe-t:         env(safe-area-inset-top, 0px);
@@ -32,6 +51,10 @@
       overflow: hidden;                 /* 整页不滚，只让内容区滚 */
       overscroll-behavior: none;        /* 关掉系统的下拉刷新/橡皮筋，换成自己的 */
       -webkit-font-smoothing: antialiased;
+      /* ⚠️ 关键：iOS 的 user-scalable=no 会被 Safari 忽略，
+         双击仍然会触发系统缩放，把"双击换壁纸"吃掉。
+         touch-action: manipulation 才能真正禁用双击缩放（同时保留滚动/捏合）。 */
+      touch-action: manipulation;
     }
     body {
       background: #0d1117;
@@ -85,16 +108,14 @@
     /* ---------- 玻璃卡片 ---------- */
     .card {
       background: var(--glass-bg);
-      backdrop-filter: blur(18px) saturate(180%);
-      -webkit-backdrop-filter: blur(18px) saturate(180%);
+      backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+      -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
       border: 1px solid var(--glass-border);
-      /* iOS 的连续圆角观感，配合顶部一道内侧高光 */
       border-radius: 26px;
       padding: 26px 20px;
       margin-top: 14px;
       box-shadow: 0 8px 28px rgba(15, 23, 42, 0.14),
-                  0 0 0 0.5px rgba(255,255,255,0.55) inset,
-                  0 1px 0 rgba(255,255,255,0.75) inset;
+                  0 1px 0 rgba(255,255,255,0.6) inset;
     }
 
     /* ---------- 主页 ---------- */
@@ -103,6 +124,7 @@
       width: 92px; height: 92px; border-radius: 50%;
       object-fit: cover; border: 3px solid rgba(255,255,255,0.85);
       box-shadow: 0 4px 14px rgba(79,70,229,0.28);
+      display: none;                    /* 加载成功前不显示，避免闪一个破图 */
     }
     .avatar-fallback {
       width: 92px; height: 92px; border-radius: 50%; margin: 0 auto;
@@ -114,7 +136,11 @@
       font-size: 27px; color: #0f172a; margin: 14px 0 4px; letter-spacing: 1px;
     }
     .subtitle { font-size: 14.5px; color: #475569; margin-bottom: 18px; font-weight: 500; }
-    .bio { font-size: 14.5px; color: #334155; line-height: 1.9; text-align: left; }
+    .bio {
+      font-size: 14.5px; color: #334155; line-height: 1.9; text-align: left;
+      /* 全局禁止了选中，这里放开：邮箱要能长按复制 */
+      -webkit-user-select: text; user-select: text;
+    }
     .bio p { margin-bottom: 8px; }
     .bio p:last-child { margin-bottom: 0; }
 
@@ -176,7 +202,11 @@
       font-size: 12.5px; color: #64748b; line-height: 1.8;
       text-align: center; padding: 8px 4px 14px;
     }
-    .board-hint a { color: #4f46e5; text-decoration: none; -webkit-user-select: all; user-select: all; }
+    .board-hint a {
+      color: #4f46e5; text-decoration: none;
+      -webkit-user-select: all; user-select: all;
+      padding: 6px 10px; border-radius: 10px; background: rgba(79,70,229,0.10);
+    }
 
     /* ---------- 底部标签栏 ----------
        和 PC 版顶部导航是同一套视觉语言：浮动玻璃胶囊 + 紫蓝渐变滑块指示器，
@@ -188,11 +218,12 @@
       padding: 6px;
       border-radius: 999px;
       background: rgba(255, 255, 255, 0.30);
-      backdrop-filter: blur(20px) saturate(180%);
-      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      /* 与 PC 版顶栏同款：背景 0.30 + blur 4px，通透程度一致 */
+      backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+      -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
       border: 1px solid rgba(255, 255, 255, 0.85);
       box-shadow: 0 10px 28px rgba(15, 23, 42, 0.18),
-                  0 0 0 0.5px rgba(255,255,255,0.6) inset;
+                  0 1px 0 rgba(255,255,255,0.6) inset;
     }
     .tabbar-inner { position: relative; display: flex; align-items: center; gap: 2px; }
 
@@ -222,18 +253,6 @@
     .tab.active { color: #fff; }
     .tab:active { transform: scale(0.94); }
 
-    /* ---------- 下拉换壁纸 ---------- */
-    .pull-hint {
-      position: absolute; left: 0; right: 0; top: 0; z-index: 40;
-      display: flex; align-items: center; justify-content: center;
-      height: 0; overflow: hidden;
-      font-size: 13px; font-weight: 600; color: #fff;
-      text-shadow: 0 1px 6px rgba(15,23,42,0.5);
-      transition: height 0.25s ease;
-      pointer-events: none;
-    }
-    .pull-hint.ready { color: #fff; }
-
     /* ---------- 动态详情：底部抽屉（比居中弹窗更适合手机） ---------- */
     .sheet-mask {
       position: fixed; inset: 0; z-index: 90;
@@ -243,12 +262,17 @@
     .sheet-mask.show { opacity: 1; pointer-events: auto; }
     .sheet {
       position: fixed; left: 0; right: 0; bottom: 0; z-index: 91;
+      max-height: 82vh;
       max-height: 82dvh;
-      background: rgba(255,255,255,0.9);
-      backdrop-filter: blur(20px) saturate(160%);
-      -webkit-backdrop-filter: blur(20px) saturate(160%);
+      /* 与卡片 / 底栏同一套玻璃参数，之前是 0.9 的实心白，跟整体不搭 */
+      background: var(--glass-bg);
+      backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+      -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
       border-radius: 34px 34px 0 0;
-      border-top: 1px solid rgba(255,255,255,0.9);
+      border: 1px solid var(--glass-border);
+      border-bottom: none;
+      box-shadow: 0 -8px 32px rgba(15, 23, 42, 0.16),
+                  0 1px 0 rgba(255,255,255,0.6) inset;
       padding: 10px 22px calc(26px + var(--safe-b));
       transform: translateY(100%);
       transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
@@ -266,6 +290,7 @@
       color: #667eea; background: rgba(102,126,234,0.14);
       padding: 5px 11px; border-radius: 9px; margin-bottom: 12px;
     }
+    .sheet-grab:active { background: rgba(15,23,42,0.32); }
     .sheet-title {
       font-family: 'ZCOOL KuaiLe', 'PingFang SC', sans-serif;
       font-size: 23px; color: #0f172a; margin-bottom: 14px; line-height: 1.4;
@@ -319,8 +344,6 @@
   <div id="wallpaper"></div>
 
   <div class="app">
-    <div class="pull-hint" id="pullHint">下拉可以换壁纸</div>
-
     <div class="viewport" id="viewport">
 
       <!-- 主页 -->
@@ -430,7 +453,6 @@
     /* ================= 壁纸 ================= */
     var wallpaper = document.getElementById('wallpaper');
     var wallIdx = 0;
-    var wallLoaded = [];
 
     function applyWallpaper(i) {
       var url = WALLPAPERS[i];
@@ -461,16 +483,18 @@
 
     /* ================= 头像 ================= */
     (function bootAvatar() {
-      if (!AVATAR_URL) { document.getElementById('avatar').style.display = 'none'; return; }
       var img = document.getElementById('avatar');
       var fb = document.getElementById('avatarFallback');
-      fb.style.display = 'none';
-      img.onload = function () { img.style.display = 'block'; fb.style.display = 'none'; };
-      img.onerror = function () { img.style.display = 'none'; fb.style.display = 'block'; };
-      var t = setTimeout(function () {
-        if (!img.complete) { img.style.display = 'none'; fb.style.display = 'block'; }
-      }, PRELOAD_TIMEOUT);
-      img.onload = function () { clearTimeout(t); img.style.display = 'block'; fb.style.display = 'none'; };
+      function useFallback() { img.style.display = 'none'; fb.style.display = 'block'; }
+      if (!AVATAR_URL) { useFallback(); return; }
+      var settled = false;
+      img.onload = function () {
+        if (settled) return; settled = true;
+        img.style.display = 'block'; fb.style.display = 'none';
+      };
+      img.onerror = function () { if (settled) return; settled = true; useFallback(); };
+      // 超时兜底：网络慢时不能一直空着
+      setTimeout(function () { if (!settled) { settled = true; useFallback(); } }, PRELOAD_TIMEOUT);
       img.src = AVATAR_URL;
     })();
 
@@ -488,10 +512,15 @@
       if (!mount) return;
       if (!items.length) { mount.innerHTML = '<div class="empty">这里还没有内容</div>'; return; }
       mount.innerHTML = items.map(function (it) {
+        /* 没配封面图时，显示标题首字（和 PC 版 .entry-cover 完全一致），
+           之前这里是个纯色块，看起来像图片丢了 */
         var cover = it.cover
-          ? '<img class="item-cover" src="' + esc(it.cover) + '" alt="">'
+          ? '<img class="item-cover" src="' + esc(it.cover) + '" alt="" loading="lazy">'
           : '<div class="item-cover" style="background:linear-gradient(135deg,' +
-            esc(it.color || '#667eea') + ',#764ba2)"></div>';
+            esc(it.color || '#667eea') + ',rgba(255,255,255,0.45));' +
+            'display:flex;align-items:center;justify-content:center;' +
+            'color:#fff;font-weight:700;font-size:22px;">' +
+            esc(String(it.title || '?').charAt(0)) + '</div>';
         return '' +
           '<div class="item">' + cover +
             '<div class="item-main">' +
@@ -601,11 +630,13 @@
       });
       moveIndicator(name);
       viewport.scrollTop = 0;
+      if (typeof closeSheet === 'function') closeSheet();   // 切栏目时收起抽屉
       if (name === 'board') mountGiscus();
     }
     // 首次定位 + 屏幕旋转/尺寸变化后重新对位
     function syncIndicator() { moveIndicator(current); }
     syncIndicator();
+    window.addEventListener('load', syncIndicator);        // 字体/图片加载完布局会变
     window.addEventListener('resize', syncIndicator);
     window.addEventListener('orientationchange', function () {
       setTimeout(syncIndicator, 250);
@@ -645,7 +676,6 @@
 
     /* ================= 下拉换壁纸 ================= */
     (function pullToRefresh() {
-      var hint = document.getElementById('pullHint');
       var startY = null, pulling = false;
       var THRESHOLD = 78;
 
@@ -658,21 +688,52 @@
       viewport.addEventListener('touchmove', function (e) {
         if (startY == null) return;
         var dy = e.touches[0].clientY - startY;
-        if (dy <= 0) { hint.style.height = '0px'; return; }
-        if (viewport.scrollTop > 0) { startY = null; hint.style.height = '0px'; return; }
+        if (dy <= 0) { pulling = false; return; }
+        if (viewport.scrollTop > 0) { startY = null; pulling = false; return; }
         pulling = true;
-        var h = Math.min(64, dy * 0.5);
-        hint.style.height = h + 'px';
-        hint.textContent = dy > THRESHOLD ? '松开换一张壁纸 ✨' : '下拉可以换壁纸';
       }, { passive: true });
 
       viewport.addEventListener('touchend', function (e) {
         if (startY == null) return;
-        var dy = (e.changedTouches[0].clientY || 0) - startY;
+        // ⚠️ changedTouches 可能为空（部分浏览器/中断手势），直接取 [0].clientY 会抛错，
+        //    一抛错整个手势逻辑就废了 —— 这就是"下拉换壁纸炸了"的一个原因
+        var ct = (e.changedTouches && e.changedTouches[0]) || (e.touches && e.touches[0]);
+        var dy = ct ? (ct.clientY - startY) : 0;
         if (pulling && dy > THRESHOLD) nextWallpaper();
-        hint.style.height = '0px';
         startY = null; pulling = false;
       });
+    })();
+
+    /* ================= 双击换壁纸 =================
+       和桌面版的"双击页面空白处换壁纸"是同一个操作，只是移动端用双击手势。
+       ⚠️ 前提：html/body 上加了 touch-action: manipulation，
+       否则 iOS Safari 会把它当成双击缩放吃掉（user-scalable=no 在 iOS 上无效）。
+
+       排除交互元素：底栏、抽屉、链接、列表条目（条目自己有点击动作）、
+       留言板 iframe（那边有自己的点击逻辑）。 */
+    (function doubleTapWallpaper() {
+      var lastTapTime = 0, lastTapX = 0, lastTapY = 0;
+      var TAP_GAP = 320;      // 两次点击间隔上限
+      var TAP_SLOP = 34;      // 两次点击位移上限
+
+      document.addEventListener('touchend', function (e) {
+        var t = (e.changedTouches && e.changedTouches[0]);
+        if (!t) return;
+        // 只排除真正有自己动作的：底栏、抽屉、动态条目（会打开详情）、链接、留言板 iframe
+        if (e.target.closest && e.target.closest(
+              '.tabbar, .sheet, .sheet-mask, #newsList .item, a, iframe, .giscus-host, button')) return;
+
+        var now = Date.now();
+        var dx = t.clientX - lastTapX, dy = t.clientY - lastTapY;
+        if (now - lastTapTime < TAP_GAP && Math.abs(dx) < TAP_SLOP && Math.abs(dy) < TAP_SLOP) {
+          // 双击成立：阻止后续的 click/缩放，并换壁纸
+          if (e.cancelable) e.preventDefault();
+          lastTapTime = 0;
+          nextWallpaper();
+          return;
+        }
+        lastTapTime = now; lastTapX = t.clientX; lastTapY = t.clientY;
+      }, { passive: false });
     })();
 
     /* ================= 点击冒爱心 ================= */
