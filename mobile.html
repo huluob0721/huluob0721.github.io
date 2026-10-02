@@ -90,6 +90,18 @@
     }
     #wallpaper.switching::before { opacity: 0.35; }
 
+    /* 常驻淡白色遮罩 —— 与 PC 版 .stage-profile::after 完全同款。
+       作用：提亮壁纸、压低对比度，保证卡片里的深色文字在任何壁纸上都清晰可读。
+       ⚠️ 必须是常驻的（不参与 switching 淡出）：
+         切换壁纸时只有图片层淡出，遮罩不动，
+         所以淡出瞬间露出的是"渐变兜底 + 白遮罩"，而不是黑屏。 */
+    #wallpaper::after {
+      content: '';
+      position: absolute; inset: 0;
+      background: rgba(255, 255, 255, 0.45);
+      pointer-events: none;
+    }
+
     /* ---------- 整体骨架：内容区 + 底栏 ---------- */
     .app {
       position: relative; z-index: 1;
