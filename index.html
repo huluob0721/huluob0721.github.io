@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/png" href="/blog/pictures/zozlogo.png">
+<title>胡萝卜的个人博客 · 导航</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.cn" crossorigin>
+<link href="https://fonts.googleapis.cn/css2?family=ZCOOL+KuaiLe&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --glass-bg:       rgba(255, 255, 255, 0.22);
+    --glass-bg-hover: rgba(255, 255, 255, 0.34);
+    --glass-blur:     4px;
+    --glass-saturate: 140%;
+    --glass-border:   rgba(255, 255, 255, 0.8);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+
+  body {
+    margin: 0;
+    background: linear-gradient(135deg, #4c5fd7 0%, #764ba2 45%, #2b1055 100%);
+    color: #0f172a;
+    font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB',
+                 'Microsoft YaHei', 'Source Han Sans SC', 'Noto Sans CJK SC',
+                 'WenQuanYi Micro Hei', sans-serif;
+    overflow: hidden;
+  }
+
+  /* ============ 背景舞台（壁纸 + 提亮遮罩，与博客主页同一套） ============ */
+  .stage {
+    position: fixed; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px;
+  }
+  .stage::before {
+    content: ''; position: absolute; inset: 0;
+    background-image: var(--wallpaper, none);
+    background-size: cover; background-position: center;
+    opacity: 0; transition: opacity .5s ease;
+  }
+  .stage.has-wallpaper::before { opacity: 1; }
+  /* 淡白遮罩：提亮壁纸，保证卡片里的深色文字读得清 */
+  .stage::after {
+    content: ''; position: absolute; inset: 0;
+    background: rgba(255, 255, 255, 0.45);
+  }
+
+  /* ============ 液态玻璃卡片 ============ */
+  .nav-card {
+    position: relative; z-index: 1;
+    width: 94%; max-width: 480px;
+    max-height: calc(100vh - 48px); overflow-y: auto;
+    padding: 38px 34px 26px;
+    border-radius: 32px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 18px 48px rgba(30, 20, 80, .22);
+    opacity: 0; transform: scale(.94) translateY(18px);
+    animation: cardIn .6s cubic-bezier(.34, 1.4, .64, 1) .05s forwards;
+  }
+  @keyframes cardIn { to { opacity: 1; transform: scale(1) translateY(0); } }
+  .nav-card::-webkit-scrollbar { width: 6px; }
+  .nav-card::-webkit-scrollbar-thumb { background: rgba(102,126,234,.4); border-radius: 3px; }
+
+  .nav-title {
+    font-family: 'ZCOOL KuaiLe', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    font-size: 30px; color: #0f172a; margin: 0 0 8px; letter-spacing: 1px;
+  }
+  .nav-tip {
+    margin: 0 0 22px; font-size: 13.5px; color: #475569; line-height: 1.7;
+  }
+
+  /* ============ 链接条目 ============ */
+  .link-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+  .link-item {
+    display: flex; align-items: center; gap: 13px;
+    padding: 13px 14px; border-radius: 16px;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    text-decoration: none; color: inherit;
+    transition: transform .18s ease, background .18s ease, box-shadow .18s ease;
+  }
+  .link-item:hover {
+    transform: translateY(-2px);
+    background: var(--glass-bg-hover);
+    box-shadow: 0 8px 22px rgba(30, 20, 80, .14);
+  }
+  .link-item:active { transform: translateY(0) scale(.99); }
+
+  .link-ico {
+    flex: 0 0 auto; width: 40px; height: 40px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center; font-size: 19px;
+    background: linear-gradient(135deg, rgba(102,126,234,.30), rgba(118,75,162,.26));
+    border: 1px solid rgba(255,255,255,.7);
+  }
+  .link-meta { flex: 1; min-width: 0; }
+  .link-name { font-size: 16px; font-weight: 600; color: #1e293b; }
+  .link-desc {
+    font-size: 12px; color: #64748b; margin-top: 3px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .link-right { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; }
+  .link-tag {
+    font-size: 11px; font-weight: 700; color: #4338ca;
+    background: rgba(102,126,234,.16); padding: 3px 9px; border-radius: 8px;
+  }
+  .link-arrow { font-size: 15px; color: #667eea; transition: transform .18s ease; }
+  .link-item:hover .link-arrow { transform: translateX(3px); }
+
+  .nav-foot {
+    margin-top: 20px; padding-top: 14px;
+    border-top: 1px solid rgba(255,255,255,.6);
+    font-size: 11.5px; color: #64748b; line-height: 1.6;
+  }
+
+  /* ============ 自定义鼠标箭头（与博客主页同一支） ============ */
+  .q-arrow {
+    position: fixed; width: 28px; height: 28px;
+    pointer-events: none; z-index: 10000;
+    opacity: 0; transform: scale(.6); transition: opacity .08s ease;
+  }
+  .q-arrow.ready { opacity: 1; transform: scale(1); transition: opacity .18s ease, transform .18s cubic-bezier(.34,1.4,.64,1); }
+  .q-arrow.hover::before { transform: scale(1.3) rotate(-5deg); }
+  .q-arrow::before {
+    content: ''; position: absolute; inset: 0;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 28'%3E%3Cpath d='M5 3 L22 13 L14 14.5 L17.5 21 Z' fill='%23ffffff' stroke='%234f46e5' stroke-width='2.2' stroke-linejoin='round' stroke-linecap='round'/%3E%3C/svg%3E") center/contain no-repeat;
+    transition: transform .15s ease;
+  }
+  .q-arrow.no-pointer { display: none; }
+  html.native-cursor, html.native-cursor *, html.native-cursor *::before, html.native-cursor *::after {
+    cursor: auto !important;
+  }
+  html.has-custom-cursor, html.has-custom-cursor *, html.has-custom-cursor *::before, html.has-custom-cursor *::after {
+    cursor: none !important;
+  }
+
+  @media (max-width: 520px) {
+    .nav-card { padding: 30px 22px 22px; max-width: none; border-radius: 26px; }
+    .nav-title { font-size: 25px; }
+    .link-ico { width: 36px; height: 36px; font-size: 17px; }
+    .link-name { font-size: 15px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="stage" id="stage">
+  <main class="nav-card">
+    <h1 class="nav-title" id="navTitle">胡萝卜的个人博客</h1>
+    <p class="nav-tip" id="navTip">请记得收藏本页面哦，以免拍断大腿找不到哦！</p>
+
+    <ul class="link-list" id="linkList"></ul>
+
+    <div class="nav-foot" id="navFoot">如果无法访问请搭配 VPN 进行访问</div>
+  </main>
+</div>
+
+<div class="q-arrow" id="qArrow"></div>
+
+<script src="./blog/data.js"></script>
+<script>
+/* ==========================================================================
+   只改这一块就够了
+   --------------------------------------------------------------------------
+   url 填 'auto'  → 按访客设备自动进 pc.html / mobile.html
+   url 留空      → 这条不显示（方便先占位，等域名/镜像搞定再填）
+   ========================================================================== */
+const CONFIG = {
+  title: '胡萝卜的个人博客',
+  tip:   '请记得收藏本页面哦，以免拍断大腿找不到哦！',
+  foot:  '如果无法访问请搭配 VPN 进行访问',
+
+  links: [
+    { name: '进入博客',   desc: '自动匹配你的设备',            url: 'auto',        icon: '🏠', tag: '推荐' },
+    { name: '电脑版',     desc: 'blog/pc.html · 鼠标 / 自定义指针',  url: './blog/pc.html',   icon: '🖥️', tag: 'PC'  },
+    { name: '手机版',     desc: 'blog/mobile.html · 触屏操作',       url: './blog/mobile.html', icon: '📱', tag: '移动' },
+    { name: '备用镜像',   desc: '换成你自己的域名 / 镜像站',     url: '',            icon: '🌐', tag: ''    },
+  ]
+};
+/* ========================================================================== */
+
+/* ---------- 设备判断（只用来给 'auto' 那条选地址，不做任何跳转） ---------- */
+function isMobileDevice() {
+  try {
+    var coarse  = window.matchMedia('(pointer: coarse)').matches;
+    var noHover = window.matchMedia('(hover: none)').matches;
+    var touch   = (navigator.maxTouchPoints || 0) > 0;
+    if (coarse && noHover && touch) return true;
+  } catch (e) {}
+  var ua = navigator.userAgent || '';
+  if (/iPhone|iPad|iPod|Android/i.test(ua)) return true;
+  if (/Macintosh/i.test(ua) && (navigator.maxTouchPoints || 0) > 1) return true;   // iPadOS 伪装成 Mac
+  return false;
+}
+
+/* ---------- 渲染列表 ---------- */
+(function render() {
+  document.getElementById('navTitle').textContent = CONFIG.title;
+  document.getElementById('navTip').textContent   = CONFIG.tip;
+  document.getElementById('navFoot').textContent  = CONFIG.foot;
+
+  const auto = isMobileDevice() ? './blog/mobile.html' : './blog/pc.html';
+  const list = document.getElementById('linkList');
+  list.innerHTML = '';
+
+  CONFIG.links.forEach(function (item) {
+    const url = (item.url === 'auto') ? auto : item.url;
+    if (!url) return;                                  // 没填地址就不显示
+
+    const a = document.createElement('a');
+    a.className = 'link-item';
+    a.href = url;
+    // 站内页面同标签打开，站外镜像新标签打开
+    if (/^https?:\/\//i.test(url)) {
+      a.target = '_blank'; a.rel = 'noopener noreferrer';
+    }
+    a.innerHTML =
+      '<span class="link-ico"></span>' +
+      '<span class="link-meta"><span class="link-name"></span><span class="link-desc"></span></span>' +
+      '<span class="link-right">' +
+        (item.tag ? '<span class="link-tag"></span>' : '') +
+        '<span class="link-arrow">→</span>' +
+      '</span>';
+    a.querySelector('.link-ico').textContent  = item.icon || '🔗';
+    a.querySelector('.link-name').textContent = item.name;
+    a.querySelector('.link-desc').textContent = item.desc || url.replace(/^\.\//, '');
+    if (item.tag) a.querySelector('.link-tag').textContent = item.tag;
+    list.appendChild(a);
+  });
+})();
+
+/* ---------- 壁纸：跟博客主页同一张，加载失败就用紫蓝渐变兜底 ---------- */
+(function wallpaper() {
+  var D = window.SITE_DATA || {};
+  var url = (D.PROFILE_WALLPAPERS && D.PROFILE_WALLPAPERS[0]) || '';
+  if (!url) return;
+  var stage = document.getElementById('stage');
+  var img = new Image();
+  img.onload = function () {
+    stage.style.setProperty('--wallpaper', 'url("' + url + '")');
+    stage.classList.add('has-wallpaper');
+  };
+  img.src = url;   // onerror 不处理：墙了就保持渐变
+})();
+
+/* ---------- 自定义箭头：有真鼠标才显示，触屏把系统光标还回来 ---------- */
+(function arrow() {
+  var q = document.getElementById('qArrow');
+  var fine = true;
+  try { fine = window.matchMedia('(hover: hover) and (pointer: fine)').matches; } catch (e) {}
+  if (!fine) { q.classList.add('no-pointer'); return; }
+
+  document.documentElement.classList.add('native-cursor');
+  document.addEventListener('mousemove', function (e) {
+    if (e.clientX <= 1 || e.clientY <= 1 ||
+        e.clientX >= window.innerWidth - 1 || e.clientY >= window.innerHeight - 1) return;
+    q.style.left = e.clientX + 'px';
+    q.style.top  = e.clientY + 'px';
+    q.classList.add('ready');
+    document.documentElement.classList.remove('native-cursor');
+    document.documentElement.classList.add('has-custom-cursor');
+  });
+  document.addEventListener('mouseleave', function () {
+    q.classList.remove('ready');
+    document.documentElement.classList.add('native-cursor');
+    document.documentElement.classList.remove('has-custom-cursor');
+  });
+  document.addEventListener('mouseover', function (e) {
+    q.classList.toggle('hover', !!(e.target.closest && e.target.closest('.link-item')));
+  });
+})();
+</script>
+</body>
+</html>
