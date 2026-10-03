@@ -20,6 +20,19 @@
 
   * { box-sizing: border-box; }
 
+  /* ============ 页面切换过渡（淡出 → 跳转 → 淡入）============
+     ① html 铺一层深色底：body 淡出后露出的是它，而不是浏览器默认的白色，
+        跳转前后观感连贯，不会闪一下白屏。
+     ② body 初始 opacity:0，加载完由 JS 加 .fade-in 淡入 —— 不再硬切。 */
+  html { background: #241a52; }
+  body { opacity: 0; }
+  body.fade-in  { opacity: 1; transition: opacity .34s ease; }
+  body.fade-out { opacity: 0; transition: opacity .26s ease; }
+  /* 尊重系统的「减少动态效果」设置 */
+  @media (prefers-reduced-motion: reduce) {
+    body.fade-in, body.fade-out { transition: none; }
+  }
+
   body {
     margin: 0;
     min-height: 100vh;
@@ -430,6 +443,31 @@ function boot() {
   }).join('');
 }
 
+/* ---------- 跨页面记住指针最后位置（只在同一个标签页内有效）----------
+   页面跳转时用它把自定义箭头直接落到正确位置，
+   避免新页面"等不到 mousemove"而一直显示系统光标。 */
+var PTR_KEY = 'zoz_last_pointer';
+var lastPtr = { x: null, y: null };
+
+function loadPointer() {
+  try {
+    var v = sessionStorage.getItem(PTR_KEY);
+    if (!v) return null;
+    var p = v.split(',');
+    var x = parseFloat(p[0]), y = parseFloat(p[1]);
+    return (isFinite(x) && isFinite(y)) ? { x: x, y: y } : null;
+  } catch (e) { return null; }
+}
+function savePointer(x, y) { lastPtr.x = x; lastPtr.y = y; }
+function flushPointer() {
+  if (lastPtr.x == null) return;
+  try { sessionStorage.setItem(PTR_KEY, lastPtr.x + ',' + lastPtr.y); } catch (e) {}
+}
+/* 移动过程中每 200ms 落盘一次；切页 / 关标签时立刻补一次，保证是最新的坐标 */
+setInterval(flushPointer, 200);
+window.addEventListener('pagehide', flushPointer);
+window.addEventListener('beforeunload', flushPointer);
+
 /* ==========================================================================
    自定义鼠标箭头 —— 与 PC 版博客主页（blog/pc.html）逐行一致
    --------------------------------------------------------------------------
@@ -459,11 +497,18 @@ function hasFinePointer() {
     return;
   }
 
-  /* 初始就挂上 native-cursor：
-     页面刚打开时还不知道指针在哪（可能压根就没进过页面），
-     这时候如果直接 cursor:none + 箭头未显示，整个页面会一个光标都没有。
-     先显示系统光标，等第一次真实移动再无缝换成自定义箭头。 */
-  document.documentElement.classList.add('native-cursor');
+  /* ⚠️ 关键修复：跳转后"卡住系统光标"
+     以前这里无条件挂 native-cursor，然后干等第一次 mousemove 才换成自定义箭头。
+     但从导航页点链接进来时鼠标往往是不动的 —— 新页面加载完压根没有 mousemove，
+     于是系统光标一直挂着，看起来就像"自定义箭头没了、卡出 Windows 指针"。
+     现在先读上一个页面记下的指针坐标（sessionStorage，同标签页有效）：
+     坐标可信就立刻把自定义箭头放好，只有确实没记录时才退回系统光标。 */
+  var saved = loadPointer();
+  if (saved && insideViewport(saved.x, saved.y)) {
+    show(saved.x, saved.y);
+  } else {
+    document.documentElement.classList.add('native-cursor');
+  }
 
   /* 规则：系统指针在网页区域内 → 显示自定义箭头 + 隐藏系统光标；
      指针离开网页区域 → 隐藏自定义箭头 + 把系统光标还回来。 */
@@ -481,6 +526,9 @@ function hasFinePointer() {
     document.documentElement.classList.remove('native-cursor');
   }
   function leave() {
+    /* 正在淡出跳页：这时候把系统光标放出来，会在切页那一下闪一个 Windows 指针，
+       正是"有概率卡出系统光标"的另一个来源，直接忽略。 */
+    if (window.__pageLeaving) return;
     qArrow.classList.remove('ready');
     // 箭头藏了，就必须把系统光标还回来，否则那边一个指针都没有
     document.documentElement.classList.add('native-cursor');
@@ -518,6 +566,16 @@ function hasFinePointer() {
   document.addEventListener('pointerenter', (e) => { if (e.pointerType === 'mouse') restore(e); });
   // 切走标签页 / 切到别的程序
   window.addEventListener('blur', leave);
+
+  /* 点击也是真实指针输入：鼠标完全静止、只点一下的情况，靠它把箭头唤出来
+     （比如刚跳进来就点空白处换壁纸） */
+  document.addEventListener('mousedown', (e) => {
+    if (insideViewport(e.clientX, e.clientY)) show(e.clientX, e.clientY);
+  });
+  document.addEventListener('pointerdown', (e) => {
+    if (e.pointerType !== 'mouse') return;
+    if (insideViewport(e.clientX, e.clientY)) show(e.clientX, e.clientY);
+  });
 })();
 
 /* 位置跟随：无条件更新，与"显隐判定"完全解耦。
@@ -525,6 +583,7 @@ function hasFinePointer() {
 function moveArrow(x, y) {
   qArrow.style.left = x + 'px';
   qArrow.style.top  = y + 'px';
+  savePointer(x, y);
 }
 document.addEventListener('mousemove', (e) => {
   moveArrow(e.clientX, e.clientY);
@@ -565,6 +624,55 @@ document.addEventListener('click', (e) => {
   document.body.appendChild(heart);
   setTimeout(() => heart.remove(), 1000);
 });
+
+/* ==========================================================================
+   页面切换过渡：点站内链接先淡出，落地页再淡入（不再硬切）
+   --------------------------------------------------------------------------
+   ⚠️ 只拦「同源 + 同标签 + 普通左键」的链接；
+      新标签打开（Ctrl / Cmd / 中键）、外链、锚点、下载一律放行，行为不变。
+   ========================================================================== */
+(function pageTransition() {
+  var FADE_OUT_MS = 260;
+
+  /* ---------- 进场：能画的第一帧就淡入 ---------- */
+  function enter() {
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        document.body.classList.add('fade-in');
+      });
+    });
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', enter);
+  } else {
+    enter();
+  }
+
+  /* ---------- 出场：站内链接先淡出再跳 ---------- */
+  document.addEventListener('click', function (e) {
+    if (e.defaultPrevented || e.button !== 0) return;
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;   // 新标签/下载：不拦
+    var a = e.target.closest && e.target.closest('a[href]');
+    if (!a || a.target === '_blank' || a.hasAttribute('download')) return;
+    var url = a.href;
+    if (!url || url.charAt(0) === '#') return;
+    try {
+      if (new URL(url, location.href).origin !== location.origin) return;   // 外链不拦
+    } catch (err) { return; }
+
+    e.preventDefault();
+    if (window.__pageLeaving) return;          // 已经在处理第二次点击了
+    window.__pageLeaving = true;               // 通知箭头逻辑：别把系统光标放出来
+    document.body.classList.remove('fade-in');
+    document.body.classList.add('fade-out');
+    setTimeout(function () { location.href = url; }, FADE_OUT_MS);
+  }, true);   // 捕获阶段：赶在其它 click 处理之前拦下
+
+  /* 兜底：万一淡出动画没跑完就导航了，别让页面卡在半透明 */
+  window.addEventListener('pagehide', function () {
+    document.body.classList.remove('fade-out');
+  });
+})();
 </script>
 </body>
 </html>
