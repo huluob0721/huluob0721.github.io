@@ -147,18 +147,30 @@
          玻璃的边缘靠 1px 白色 border 勾勒就够了。 */
     }
 
-    /* ---------- 主页 ---------- */
-    .avatar-wrap { text-align: center; }
+    /* ---------- 主页 ----------
+       头像统一【左对齐】，和下面的昵称 / 简介 / 副标题保持同一条左边线。
+       ⚠️ 之前这里只写了 text-align:center，结果加载前后位置会跳：
+         加载前显示 .avatar-fallback（div，靠 margin:0 auto 居中）；
+         加载成功后 JS 把 <img> 切成 display:block —— text-align 对块级元素无效，
+         全局又重置了 margin:0，img 就会掉到左边。
+       现在两者都显式左对齐、都不用 auto 边距，加载前后严丝合缝。 */
+    .avatar-wrap {
+      text-align: left;
+    }
     .avatar {
       width: 92px; height: 92px; border-radius: 50%;
       object-fit: cover; border: 3px solid rgba(255,255,255,0.85);
       box-shadow: 0 4px 14px rgba(79,70,229,0.28);
+      /* 左对齐 + 清掉 auto 边距：和 fallback 位置完全一致 */
+      margin: 0;
       display: none;                    /* 加载成功前不显示，避免闪一个破图 */
     }
     .avatar-fallback {
-      width: 92px; height: 92px; border-radius: 50%; margin: 0 auto;
+      width: 92px; height: 92px; border-radius: 50%; margin: 0;
       background: linear-gradient(135deg, #667eea, #764ba2);
       border: 3px solid rgba(255,255,255,0.85);
+      /* 和加载后的 <img> 保持同一圈阴影，切换时不会出现"突然多了个光晕" */
+      box-shadow: 0 4px 14px rgba(79,70,229,0.28);
     }
     .nickname {
       font-family: 'ZCOOL KuaiLe', 'PingFang SC', sans-serif;
