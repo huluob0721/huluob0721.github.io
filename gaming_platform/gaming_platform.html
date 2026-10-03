@@ -401,7 +401,7 @@ function boot() {
   }
 
   var ready = GAMES.filter(function (g) { return !!g.url; }).length;
-  sub.textContent = D.SUBTITLE || ('共 ' + GAMES.length + ' 款自制游戏 · ' + ready + ' 款可玩');
+  sub.textContent = D.SUBTITLE || ('共 ' + GAMES.length + ' 款游戏可供游玩');
 
   grid.innerHTML = GAMES.map(function (g) {
     var iconHtml = g.cover

@@ -47,7 +47,7 @@ window.GAMING_PLATFORM_DATA = (function () {
     const GAMES = [
       { title: 'FX 模拟器', platform: 'HTML5', status: '可玩', color: '#0ea5e9', cover: '', icon: 'FX',
         url: '/gaming_platform/games/fx_simulator/fx_simulator.html',
-        comment: '第一个挂上来的自制小游戏' },
+        comment: '来玩模拟外汇交易吧，体验做空股市的快感！' },
     ];
 
   return {
