@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FX 做空模拟终端 · SHORT TERMINAL</title>
+<style>
+  :root{
+    --bg:#080b10; --panel:#111823; --panel2:#0d131c; --line:#1e2b3a; --line2:#16202c;
+    --text:#e6eef7; --muted:#7b8ca0; --dim:#4d5f74;
+    --up:#ff5d6c;        /* 价格上涨（对空头不利） */
+    --down:#31d68f;      /* 价格下跌（对空头有利） */
+    --gold:#ffcc57;      /* 盈利 */
+    --blue:#5ea9ff;
+    --orange:#ff9f43;
+    --purple:#a78bfa;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;min-height:100%;}
+  body{
+    background:
+      radial-gradient(1200px 600px at 20% -10%, #101a26 0%, transparent 60%),
+      radial-gradient(900px 500px at 100% 0%, #131020 0%, transparent 55%),
+      var(--bg);
+    color:var(--text);
+    font-family:"PingFang SC","Microsoft YaHei","WenQuanYi Micro Hei",system-ui,-apple-system,"Segoe UI",sans-serif;
+    font-size:14px; -webkit-font-smoothing:antialiased;
+  }
+  .mono{font-family:Consolas,Menlo,"DejaVu Sans Mono","Courier New",monospace;}
+  .wrap{max-width:1200px;margin:0 auto;padding:16px 16px 36px;}
+
+  /* ---------- header ---------- */
+  header.bk{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;}
+  header.bk h1{font-size:18px;margin:0;letter-spacing:1px;}
+  header.bk .sub{color:var(--dim);font-size:11px;letter-spacing:2px;}
+  .hd-right{margin-left:auto;display:flex;align-items:center;gap:8px;}
+  .pill{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:4px 11px;font-size:11px;color:var(--muted);}
+  .pill b{color:var(--text);font-weight:600;}
+  .ibtn{background:var(--panel);border:1px solid var(--line);color:var(--muted);border-radius:8px;
+    width:30px;height:30px;font-size:13px;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center;}
+  .ibtn:hover{border-color:var(--blue);color:var(--text);}
+  .ibtn.on{color:var(--gold);border-color:#4a3c1a;}
+
+  /* ---------- hud ---------- */
+  .hud{display:grid;grid-template-columns:repeat(5,1fr);gap:9px;margin-bottom:12px;}
+  .card{background:linear-gradient(180deg,#131c27,#0f1620);border:1px solid var(--line);
+    border-radius:10px;padding:9px 11px;position:relative;overflow:hidden;}
+  .card .k{font-size:10px;color:var(--muted);letter-spacing:1px;margin-bottom:3px;white-space:nowrap;}
+  .card .v{font-size:17px;font-weight:700;letter-spacing:-.2px;white-space:nowrap;}
+  .card .v.s{font-size:14px;font-weight:600;}
+  .card .sub2{font-size:10px;color:var(--dim);margin-top:2px;}
+  .card::after{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--line);}
+  .card.c1::after{background:var(--blue);} .card.c2::after{background:var(--purple);}
+  .card.c3::after{background:var(--orange);} .card.c4::after{background:var(--gold);}
+  .card.c5::after{background:var(--dim);}
+
+  /* ---------- layout ---------- */
+  .main{display:grid;grid-template-columns:1fr 336px;gap:12px;}
+  @media (max-width:960px){ .main{grid-template-columns:1fr;} .hud{grid-template-columns:repeat(2,1fr);} }
+
+  .chartbox{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 10px 6px;}
+  .chart-top{display:flex;align-items:flex-end;gap:14px;padding:2px 4px 8px;flex-wrap:wrap;}
+  .price{font-size:30px;font-weight:700;line-height:1;letter-spacing:-.5px;}
+  .chg{font-size:12px;padding-bottom:4px;}
+  .legend{display:flex;gap:10px;margin-left:auto;font-size:10px;color:var(--muted);padding-bottom:4px;flex-wrap:wrap;}
+  .legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:4px;vertical-align:middle;}
+  .cvwrap{position:relative;}
+  canvas#cv{width:100%;height:340px;display:block;border-radius:8px;background:var(--panel2);cursor:crosshair;}
+  canvas#spark{width:100%;height:52px;display:block;border-radius:6px;background:var(--panel2);}
+  @media (max-width:960px){ canvas#cv{height:260px;} }
+  .bar{height:4px;background:var(--panel2);border-radius:3px;overflow:hidden;margin:8px 2px 4px;}
+  .bar i{display:block;height:100%;background:linear-gradient(90deg,#2f7de0,#5ea9ff);width:0%;transition:width .2s;}
+
+  .side{display:flex;flex-direction:column;gap:11px;}
+  .panel{background:linear-gradient(180deg,#131c27,#0f1620);border:1px solid var(--line);border-radius:12px;padding:12px;}
+  .panel h3{margin:0 0 10px;font-size:11px;color:var(--muted);letter-spacing:2px;font-weight:600;
+    display:flex;align-items:center;gap:6px;}
+  .panel h3 .dot{width:6px;height:6px;border-radius:50%;background:var(--blue);}
+  .panel h3 .r{margin-left:auto;font-size:10px;color:var(--dim);letter-spacing:0;}
+  .row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px;font-size:12px;}
+  .row .lab{color:var(--muted);font-size:11px;}
+  .row .val{font-weight:600;}
+
+  input[type=number],select{
+    width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);
+    border-radius:7px;padding:7px 9px;font-size:13px;outline:none;
+    font-family:Consolas,Menlo,monospace;
+  }
+  input[type=number]:focus,select:focus{border-color:var(--blue);box-shadow:0 0 0 2px rgba(94,169,255,.12);}
+  input[type=range]{width:100%;accent-color:var(--blue);margin:4px 0 2px;}
+  .chips{display:flex;gap:6px;margin-top:7px;}
+  .chip{flex:1;background:var(--panel2);border:1px solid var(--line);color:var(--muted);
+    border-radius:7px;padding:6px 0;font-size:11px;cursor:pointer;text-align:center;transition:.15s;}
+  .chip:hover{border-color:var(--blue);color:var(--text);background:#132030;}
+
+  button{
+    width:100%;border:none;border-radius:9px;padding:10px;font-size:13px;font-weight:600;
+    cursor:pointer;letter-spacing:1px;transition:filter .15s,opacity .15s,transform .08s;
+    font-family:inherit;
+  }
+  button:active{transform:translateY(1px);}
+  button:hover{filter:brightness(1.15);}
+  button:disabled{opacity:.35;cursor:not-allowed;filter:none;transform:none;}
+  .btn-short{background:linear-gradient(180deg,#ff6b78,#cf2f3c);color:#fff;box-shadow:0 4px 14px rgba(207,47,60,.22);}
+  .btn-next{background:linear-gradient(180deg,#2f7de0,#1d5cb0);color:#fff;box-shadow:0 4px 14px rgba(47,125,224,.2);}
+  .btn-close{background:linear-gradient(180deg,#3a4a5e,#26323f);color:#e6eef7;}
+  .btn-gold{background:linear-gradient(180deg,#ffd166,#e0a52e);color:#3a2a05;}
+  .btn-ghost{background:transparent;border:1px solid var(--line);color:var(--muted);font-weight:500;}
+  .btn-row{display:flex;gap:8px;margin-top:8px;}
+
+  /* ---------- position ---------- */
+  .pos .pnlbig{font-size:24px;font-weight:700;text-align:center;padding:2px 0 8px;letter-spacing:-.5px;}
+  .pos .grid{display:grid;grid-template-columns:1fr 1fr;gap:5px 10px;font-size:11px;}
+  .pos .grid div{display:flex;justify-content:space-between;gap:6px;border-bottom:1px dashed #1a2432;padding-bottom:3px;}
+  .pos .grid span:first-child{color:var(--muted);}
+  .empty{color:var(--dim);font-size:12px;text-align:center;padding:14px 0;line-height:1.7;}
+  .riskbar{height:6px;background:var(--panel2);border-radius:4px;overflow:hidden;margin-top:8px;border:1px solid var(--line2);}
+  .riskbar i{display:block;height:100%;width:0%;transition:width .2s;}
+
+  /* ---------- log ---------- */
+  .logbox{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:12px;}
+  .log{height:140px;overflow-y:auto;font-size:12px;line-height:1.8;padding-right:4px;}
+  .log::-webkit-scrollbar{width:6px;} .log::-webkit-scrollbar-thumb{background:#22303f;border-radius:3px;}
+  .log div{display:flex;gap:8px;border-bottom:1px solid #131b25;padding:2px 0;}
+  .log .t{color:var(--dim);flex:0 0 58px;}
+  .log .m{color:#b9c8d8;flex:1;}
+  .log .news{color:var(--orange);}
+  .log .win{color:var(--gold);} .log .bad{color:var(--up);}
+
+  /* ---------- overlays ---------- */
+  .overlay{position:fixed;inset:0;background:rgba(4,7,11,.9);backdrop-filter:blur(3px);
+    display:none;align-items:center;justify-content:center;z-index:15;padding:20px;}
+  .overlay.on{display:flex;animation:fade .18s ease;}
+  @keyframes fade{from{opacity:0}to{opacity:1}}
+  .result{background:linear-gradient(180deg,#141d29,#0e151e);border:1px solid var(--line);
+    border-radius:16px;padding:24px 26px;width:400px;max-width:100%;box-shadow:0 24px 60px rgba(0,0,0,.6);}
+  .result h2{margin:0 0 4px;font-size:22px;text-align:center;}
+  .result .rank{color:var(--gold);font-size:12px;margin-bottom:14px;letter-spacing:1px;text-align:center;}
+  .kv{display:flex;justify-content:space-between;font-size:12.5px;padding:6px 0;border-bottom:1px dashed #1c2735;}
+  .kv span:first-child{color:var(--muted);}
+  .nextline{margin-top:14px;padding:11px 13px;border-radius:10px;background:#0b1a12;border:1px solid #1d4433;text-align:center;}
+  .nextline .k{font-size:11px;color:var(--muted);}
+  .nextline .v{font-size:20px;font-weight:700;color:var(--down);}
+  .nextline.bad{background:#1a0d10;border-color:#4a2028;} .nextline.bad .v{color:var(--up);}
+
+  /* tutorial */
+  .overlay.tut{z-index:20;}
+  .tutbox{background:linear-gradient(180deg,#141d29,#0e151e);border:1px solid var(--line);border-radius:16px;
+    width:640px;max-width:100%;max-height:88vh;overflow:auto;padding:26px 28px;box-shadow:0 24px 60px rgba(0,0,0,.6);}
+  .tutbox h2{margin:0 0 2px;font-size:19px;}
+  .tutbox .step{color:var(--blue);font-size:11px;letter-spacing:2px;margin-bottom:14px;}
+  .tutbox p{line-height:1.85;font-size:13px;color:#c8d6e4;margin:0 0 10px;}
+  .tutbox ul{margin:0 0 10px;padding-left:18px;line-height:1.9;font-size:13px;color:#c8d6e4;}
+  .tutbox li b{color:var(--text);}
+  .tutbox .eg{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:11px 13px;
+    font-size:12.5px;line-height:1.9;margin:8px 0 12px;}
+  .tutbox .eg .row{display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:4px;}
+  .tutbox kbd{background:#1b2634;border:1px solid #2b3a4d;border-bottom-width:2px;border-radius:5px;
+    padding:1px 6px;font-size:11px;font-family:Consolas,monospace;color:var(--text);}
+  .dots{display:flex;gap:6px;justify-content:center;margin:16px 0 12px;}
+  .dots i{width:7px;height:7px;border-radius:50%;background:#26313f;transition:.2s;}
+  .dots i.on{background:var(--blue);width:20px;border-radius:4px;}
+  .tutfoot{display:flex;gap:8px;align-items:center;}
+
+  .foot{color:var(--dim);font-size:11px;margin-top:18px;text-align:center;line-height:1.9;}
+  .win{color:var(--gold);} .lose{color:var(--up);} .flat{color:var(--text);}
+  .tagmini{font-size:10px;color:var(--muted);}
+  table.hist{width:100%;border-collapse:collapse;font-size:11px;}
+  table.hist th{color:var(--dim);font-weight:500;text-align:right;padding:3px 2px;border-bottom:1px solid var(--line);}
+  table.hist td{text-align:right;padding:3px 2px;border-bottom:1px solid #141c26;}
+  table.hist td:first-child,table.hist th:first-child{text-align:left;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="bk">
+    <h1>FX 做空模拟终端</h1>
+    <span class="sub mono">SHORT ONLY · USD/JPY</span>
+    <div class="hd-right">
+      <span class="pill mono">第 <b id="roundNo">1</b> 局 · <span id="clock">D1 09:00</span></span>
+      <button class="ibtn" id="btnSound" title="音效开关">🔇</button>
+      <button class="ibtn" id="btnHelp" title="新手教程">?</button>
+      <button class="ibtn" id="btnWipe" title="清空存档，重置为 2000 万">⟲</button>
+    </div>
+  </header>
+
+  <div class="hud">
+    <div class="card c1"><div class="k">账户权益 EQUITY</div><div class="v mono" id="equity">¥0</div><div class="sub2 mono" id="equitySub"></div></div>
+    <div class="card c2"><div class="k">可用资金 FREE</div><div class="v mono s" id="free">¥0</div><div class="sub2 mono" id="freeSub"></div></div>
+    <div class="card c3"><div class="k">浮动盈亏 UNREALIZED</div><div class="v mono s" id="unreal">¥0</div><div class="sub2 mono" id="unrealSub"></div></div>
+    <div class="card c4"><div class="k">本局已实现 PnL</div><div class="v mono s" id="realized">¥0</div><div class="sub2 mono" id="realizedSub"></div></div>
+    <div class="card c5"><div class="k">回合 / 上限</div><div class="v mono s" id="tickinfo">0 / 60</div><div class="sub2 mono" id="modeInfo">波动 —</div></div>
+  </div>
+
+  <div class="main">
+    <div class="chartbox">
+      <div class="chart-top">
+        <div class="price mono" id="price">150.000</div>
+        <div class="chg mono" id="chg">+0.00%</div>
+        <div class="legend mono">
+          <span><i style="background:#ff5d6c"></i>上涨（亏）</span>
+          <span><i style="background:#31d68f"></i>下跌（赚）</span>
+          <span><i style="background:#5ea9ff"></i>MA5</span>
+          <span><i style="background:#ffcc57"></i>开仓价</span>
+          <span><i style="background:#ff5d6c"></i>强平价</span>
+        </div>
+      </div>
+      <div class="cvwrap"><canvas id="cv"></canvas></div>
+      <div class="bar"><i id="prog"></i></div>
+    </div>
+
+    <div class="side">
+      <div class="panel">
+        <h3><span class="dot"></span>开仓 · 做空 USD/JPY<span class="r mono" id="pairInfo">1 tick = 15min</span></h3>
+        <div class="row"><span class="lab">名义金额（日元）</span><span class="val mono" id="notionalTxt">¥20,000,000</span></div>
+        <input type="range" id="notionalRange" min="100000" max="200000000" step="100000" value="20000000">
+        <input type="number" id="notionalInput" min="100000" step="100000" value="20000000">
+        <div class="chips">
+          <div class="chip" data-p="0.25">25%</div>
+          <div class="chip" data-p="0.5">50%</div>
+          <div class="chip" data-p="0.75">75%</div>
+          <div class="chip" data-p="1">满仓</div>
+        </div>
+        <div class="row" style="margin-top:10px"><span class="lab">杠杆</span></div>
+        <select id="lev">
+          <option value="1">1x（保证金 100%，几乎不会爆）</option>
+          <option value="2">2x（保证金 50%）</option>
+          <option value="5">5x（保证金 20%）</option>
+          <option value="10" selected>10x（保证金 10%）</option>
+          <option value="20">20x（保证金 5%，激进）</option>
+          <option value="50">50x（保证金 2%，赌博）</option>
+        </select>
+        <div class="row" style="margin-top:8px">
+          <span class="lab">占用保证金</span><span class="val mono" id="marginTxt">¥2,000,000</span></div>
+        <div class="btn-row"><button class="btn-short" id="btnShort">建立空单 SHORT ▼</button></div>
+        <div class="btn-row">
+          <div style="flex:1"><div class="lab" style="font-size:10px;color:var(--muted);margin-bottom:3px">止损价（高于现价）</div>
+            <input type="number" id="sl" placeholder="可选" step="0.05"></div>
+          <div style="flex:1"><div class="lab" style="font-size:10px;color:var(--muted);margin-bottom:3px">止盈价（低于现价）</div>
+            <input type="number" id="tp" placeholder="可选" step="0.05"></div>
+        </div>
+      </div>
+
+      <div class="panel pos">
+        <h3><span class="dot" style="background:var(--gold)"></span>当前持仓<span class="r mono" id="posTag">空仓</span></h3>
+        <div id="posBox"><div class="empty">空仓中<br><span style="font-size:11px">选好金额与杠杆，建立一张空单</span></div></div>
+      </div>
+
+      <div class="panel">
+        <h3><span class="dot" style="background:var(--purple)"></span>推进市场</h3>
+        <button class="btn-next" id="btnNext">下一步 NEXT ▸<span style="opacity:.6;font-weight:400"> 空格</span></button>
+        <div class="btn-row">
+          <button class="btn-close" id="btnAuto">自动 AUTO ▶</button>
+          <button class="btn-close" id="btnFlat" disabled>全部平仓</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3><span class="dot" style="background:var(--down)"></span>资金曲线<span class="r mono" id="sparkTag">本局权益</span></h3>
+        <canvas id="spark"></canvas>
+      </div>
+
+      <div class="panel">
+        <h3><span class="dot" style="background:var(--orange)"></span>存档 · 战绩<span class="r mono" id="saveTag"></span></h3>
+        <div class="row"><span class="lab">当前本金（下一局起始）</span><span class="val mono" id="saveBal">¥20,000,000</span></div>
+        <div class="row"><span class="lab">历史峰值</span><span class="val mono" id="savePeak">¥20,000,000</span></div>
+        <div class="row"><span class="lab">累计盈亏</span><span class="val mono" id="saveTotal">¥0</span></div>
+        <div id="histWrap"><div class="empty" style="padding:8px 0">还没有完成任何一局</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="logbox">
+    <h3 style="margin:0 0 8px;font-size:11px;color:var(--muted);letter-spacing:2px;">市场日志</h3>
+    <div class="log mono" id="log"></div>
+  </div>
+
+  <div class="foot">
+    快捷键：<b>空格</b> 下一步 · <b>S</b> 做空 · <b>C</b> 平仓 · <b>A</b> 自动 · <b>H</b> 帮助<br>
+    你只能做空：汇率下跌赚钱，上涨亏钱。亏损吃光保证金 90% 会强制平仓。数据纯本地模拟，与真实市场无关。
+  </div>
+</div>
+
+<!-- 教程 -->
+<div class="overlay tut" id="ovTut">
+  <div class="tutbox">
+    <h2 id="tTitle">欢迎来到做空终端</h2>
+    <div class="step mono" id="tStep">STEP 1 / 6</div>
+    <div id="tBody"></div>
+    <div class="dots" id="tDots"></div>
+    <div class="tutfoot">
+      <button class="btn-ghost" id="tSkip" style="width:auto;padding:9px 14px">跳过教程</button>
+      <div style="flex:1"></div>
+      <button class="btn-ghost" id="tPrev" style="width:auto;padding:9px 16px">上一步</button>
+      <button class="btn-next" id="tNext" style="width:auto;padding:9px 22px">下一步</button>
+    </div>
+  </div>
+</div>
+
+<!-- 结算 -->
+<div class="overlay" id="ov">
+  <div class="result">
+    <h2 id="rTitle">结算</h2>
+    <div class="rank mono" id="rRank">—</div>
+    <div class="kv"><span>本局起始资金</span><span class="mono" id="rInit">¥0</span></div>
+    <div class="kv"><span>本局结束资金</span><span class="mono" id="rFinal">¥0</span></div>
+    <div class="kv"><span>本局收益率</span><span class="mono" id="rRet">0%</span></div>
+    <div class="kv"><span>交易笔数 / 胜率</span><span class="mono" id="rTrades">0 / 0%</span></div>
+    <div class="kv"><span>最大单笔盈利</span><span class="mono" id="rBest">¥0</span></div>
+    <div class="kv"><span>最大单笔亏损</span><span class="mono" id="rWorst">¥0</span></div>
+    <div class="nextline" id="rNextBox">
+      <div class="k">下一局起始资金</div>
+      <div class="v mono" id="rNext">¥0</div>
+    </div>
+    <button class="btn-gold" style="margin-top:16px" id="btnAgain">开始下一局 ▸</button>
+    <button class="btn-ghost" style="margin-top:8px" id="btnBankrupt">资金耗尽 · 以 2000 万重新开始</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ================= 配置 ================= */
+  var CFG = {
+    initFund  : 20000000,    // 初始资金 2000 万日元
+    minFund   : 100000,      // 低于 10 万日元视为破产
+    maxTicks  : 60,
+    warmup    : 48,
+    tickVol   : 0.0019,      // 每 tick 波动（标准差）
+    subSteps  : 8,           // 每 tick 子步（用于生成 K 线）
+    newsProb  : 0.14,
+    liqRatio  : 0.90,
+    maxPoints : 130,
+    priceBand : [138, 162]   // 每局起始汇率随机区间
+  };
+  var SAVE_KEY = 'fx_short_save_v3';
+
+  var NEWS = [
+    {t:"日本央行意外加息，日元全线走强",            d:-1, mag:[0.6,1.7]},
+    {t:"日本财务省暗示入市干预，美元兑日元跳水",    d:-1, mag:[0.5,1.3]},
+    {t:"美国 CPI 高于预期，降息预期降温",           d: 1, mag:[0.4,1.0]},
+    {t:"美国非农大超预期，美元指数拉升",            d: 1, mag:[0.5,1.4]},
+    {t:"美股暴跌，避险资金涌入日元",                d:-1, mag:[0.7,1.9]},
+    {t:"美联储主席放鹰：不急于降息",                d: 1, mag:[0.3,0.8]},
+    {t:"中东局势骤紧，避险买盘推高美元",            d: 1, mag:[0.4,1.1]},
+    {t:"日本出口商集中结汇，日元短线走强",          d:-1, mag:[0.3,0.7]},
+    {t:"美国零售销售疲软，衰退担忧升温",            d:-1, mag:[0.3,0.9]},
+    {t:"美债收益率飙升，套息交易重新活跃",          d: 1, mag:[0.5,1.2]},
+    {t:"东京 CPI 超预期，加息押注升温",             d:-1, mag:[0.4,1.0]},
+    {t:"风险偏好回升，资金流出日元",                d: 1, mag:[0.3,0.8]}
+  ];
+
+  /* ================= 存档 ================= */
+  var save = {
+    fund: CFG.initFund, peak: CFG.initFund, round: 1,
+    history: [], tutorial: false, sound: false
+  };
+  function loadSave(){
+    try{
+      var raw = localStorage.getItem(SAVE_KEY);
+      if(raw){
+        var o = JSON.parse(raw);
+        if(o && typeof o.fund === 'number' && isFinite(o.fund)){
+          save.fund = Math.max(0, o.fund);
+          save.peak = Math.max(save.fund, o.peak || save.fund);
+          save.round = o.round || 1;
+          save.history = Array.isArray(o.history) ? o.history.slice(0,20) : [];
+          save.tutorial = !!o.tutorial;
+          save.sound = !!o.sound;
+        }
+      }
+    }catch(e){ /* file:// 或隐私模式下不可用，退化到内存存档 */ }
+  }
+  function writeSave(){
+    try{ localStorage.setItem(SAVE_KEY, JSON.stringify(save)); }catch(e){}
+  }
+
+  /* ================= 工具 ================= */
+  function $(id){ return document.getElementById(id); }
+  function randn(){
+    var u=0,v=0; while(u===0)u=Math.random(); while(v===0)v=Math.random();
+    return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);
+  }
+  function rnd(a,b){ return a+Math.random()*(b-a); }
+  function clamp(x,a,b){ return x<a?a:(x>b?b:x); }
+  function grp(n){ return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ","); }
+  function fmtJ(x){  return (x<0?"-¥":"¥") + grp(Math.abs(Math.round(x))); }
+  function fmtS(x){  return (x>=0?"+":"-") + "¥" + grp(Math.abs(Math.round(x))); }
+  function fmtW(x){  // 紧凑：万 / 亿
+    var a = Math.abs(x), s = x<0?"-":"";
+    if(a >= 1e8) return s + (a/1e8).toFixed(2) + "亿";
+    if(a >= 1e4) return s + grp(Math.round(a/1e4)) + "万";
+    return s + grp(a);
+  }
+  function col(x){ return x>0?"var(--gold)":(x<0?"var(--up)":"var(--text)"); }
+  function cls(x){ return x>0?"win":(x<0?"lose":"flat"); }
+
+  /* ================= 音效（纯代码合成，无外部资源） ================= */
+  var AC=null, soundOn=false;
+  function tone(freq, dur, type, vol){
+    if(!soundOn) return;
+    try{
+      if(!AC){ var C = window.AudioContext||window.webkitAudioContext; if(!C) return; AC = new C(); }
+      if(AC.state === 'suspended') AC.resume();
+      var o = AC.createOscillator(), g = AC.createGain();
+      o.type = type||'sine'; o.frequency.value = freq;
+      g.gain.setValueAtTime(0, AC.currentTime);
+      g.gain.linearRampToValueAtTime(vol||0.06, AC.currentTime+0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001, AC.currentTime+(dur||0.15));
+      o.connect(g); g.connect(AC.destination); o.start(); o.stop(AC.currentTime+(dur||0.15)+0.02);
+    }catch(e){}
+  }
+  var SFX = {
+    open : function(){ tone(520,.09,'square',.05); setTimeout(function(){tone(390,.12,'square',.045);},70); },
+    win  : function(){ tone(660,.1,'sine',.06); setTimeout(function(){tone(880,.16,'sine',.06);},90); },
+    lose : function(){ tone(300,.14,'sawtooth',.05); setTimeout(function(){tone(200,.22,'sawtooth',.05);},110); },
+    tick : function(){ tone(1200,.03,'sine',.02); },
+    news : function(){ tone(760,.08,'triangle',.05); setTimeout(function(){tone(560,.1,'triangle',.05);},80); },
+    bust : function(){ tone(180,.3,'sawtooth',.07); setTimeout(function(){tone(120,.45,'sawtooth',.06);},150); }
+  };
+
+  /* ================= 状态 ================= */
+  var S, timer=null;
+
+  function stepTick(st, warm){
+    var N = CFG.subSteps, sub = CFG.tickVol/Math.sqrt(N);
+    st.trend = st.trend*0.86 + randn()*0.00030;
+    var o = st.price, hi = o, lo = o;
+    var news = null, newsIdx = (!warm && Math.random()<CFG.newsProb) ? Math.floor(Math.random()*N) : -1;
+    for(var i=0;i<N;i++){
+      var pct = st.trend/N + randn()*sub;
+      if(i === newsIdx){
+        var n = NEWS[Math.floor(Math.random()*NEWS.length)];
+        var mag = rnd(n.mag[0], n.mag[1])/100;
+        pct += n.d*mag;
+        news = {t:n.t, impact:n.d*mag};
+      }
+      st.price = Math.max(1, st.price*(1+pct));
+      if(st.price>hi) hi=st.price;
+      if(st.price<lo) lo=st.price;
+    }
+    st.lastNews = news;
+    return {o:o, h:hi, l:lo, c:st.price};
+  }
+
+  function newRound(){
+    var st = {
+      startFund : save.fund,
+      realized  : 0,
+      price     : rnd(CFG.priceBand[0], CFG.priceBand[1]),
+      hist      : [],
+      equityCurve: [],
+      tick      : 0,
+      pos       : null,
+      trend     : 0,
+      trades    : [],
+      best      : 0,
+      worst      : 0,
+      over      : false
+    };
+    for(var i=0;i<CFG.warmup;i++) st.hist.push(stepTick(st, true));
+    return st;
+  }
+
+  function pnlOf(p, price){ return (p.entry - price)/p.entry * p.notional; }
+  function floating(){ return S.pos ? pnlOf(S.pos, S.price) : 0; }
+  function equity(){ return S.startFund + S.realized + floating(); }
+  function freeCash(){ return S.startFund + S.realized - (S.pos?S.pos.margin:0); }
+  function liqPrice(p){ return p.entry*(1 + CFG.liqRatio/p.lev); }
+  function curPrice(){ return S.hist.length ? S.hist[S.hist.length-1].c : S.price; }
+
+  /* ================= 渲染 ================= */
+  var cv = $('cv'), ctx = cv.getContext('2d');
+  var sp = $('spark'), sctx = sp.getContext('2d');
+
+  function clockText(){
+    var sess = 8*60, base = 9*60, off = S.tick*15;
+    var day = 1 + Math.floor(off/sess), m = base + (off % sess);
+    var hh = Math.floor(m/60), mm = m%60;
+    return 'D'+day+' ' + (hh<10?'0':'')+hh + ':' + (mm<10?'0':'')+mm;
+  }
+
+  function log(msg, kind){
+    var el = document.createElement('div');
+    var k = kind ? ' ' + kind : '';
+    el.innerHTML = '<span class="t">'+clockText()+'</span><span class="m'+k+'">'+msg+'</span>';
+    var box = $('log'); box.appendChild(el); box.scrollTop = box.scrollHeight;
+  }
+
+  function renderAll(){ renderHUD(); renderPos(); syncNotional(parseFloat($('notionalInput').value)||0, true); drawChart(); drawSpark(); renderSave(); }
+
+  function renderHUD(){
+    var eq = equity(), fl = floating(), px = curPrice();
+    $('equity').textContent = fmtJ(eq);
+    $('equity').style.color = eq > S.startFund ? 'var(--gold)' : (eq < S.startFund ? 'var(--up)' : 'var(--text)');
+    $('equitySub').textContent = fmtW(eq) + ' · 起始 ' + fmtW(S.startFund);
+    $('free').textContent = fmtJ(freeCash());
+    $('freeSub').textContent = S.pos ? '占用保证金 ' + fmtW(S.pos.margin) : '未占用';
+    $('unreal').textContent = fmtS(fl);
+    $('unreal').style.color = col(fl);
+    $('unrealSub').textContent = S.pos ? (fl/S.pos.margin*100).toFixed(1) + '% 保证金回报' : '—';
+    $('realized').textContent = fmtS(S.realized);
+    $('realized').style.color = col(S.realized);
+    $('realizedSub').textContent = (S.startFund ? (S.realized/S.startFund*100).toFixed(2) : '0.00') + '% 本局';
+    $('tickinfo').textContent = S.tick + ' / ' + CFG.maxTicks;
+    $('prog').style.width = (S.tick/CFG.maxTicks*100)+'%';
+    $('clock').textContent = clockText();
+    $('roundNo').textContent = save.round;
+
+    var prev = S.hist.length>1 ? S.hist[S.hist.length-2].c : px;
+    var d = (px-prev)/prev*100;
+    $('price').textContent = px.toFixed(3);
+    $('price').style.color = px>=prev ? 'var(--up)' : 'var(--down)';
+    $('chg').textContent = (px>=prev?'▲ +':'▼ ') + d.toFixed(3) + '%  (' + (px-prev>=0?'+':'') + (px-prev).toFixed(3) + ')';
+    $('chg').style.color = px>=prev ? 'var(--up)' : 'var(--down)';
+
+    var w = S.hist.slice(-21), sum=0;
+    for(var i=1;i<w.length;i++){ var r = Math.log(w[i].c/w[i-1].c); sum += r*r; }
+    var sd = w.length>2 ? Math.sqrt(sum/(w.length-1)) : 0;
+    $('modeInfo').textContent = '波动 ' + (sd*100).toFixed(3) + '% · ' + (sd>0.0028?'剧烈':(sd>0.0015?'活跃':'平静'));
+    $('btnFlat').disabled = !S.pos;
+    $('btnNext').disabled = S.over;
+    $('btnShort').disabled = S.over;
+  }
+
+  function renderPos(){
+    var box = $('posBox');
+    if(!S.pos){
+      $('posTag').textContent = '空仓'; $('posTag').style.color='var(--muted)';
+      box.innerHTML = '<div class="empty">空仓中<br><span style="font-size:11px">选好金额与杠杆，建立一张空单</span></div>';
+      return;
+    }
+    var p = S.pos, fl = pnlOf(p, curPrice()), lp = liqPrice(p);
+    var used = clamp((-fl)/p.margin*100, 0, 100);
+    $('posTag').textContent = 'SHORT · ' + p.lev.toFixed(0) + 'x'; $('posTag').style.color='var(--down)';
+    box.innerHTML =
+      '<div class="pnlbig mono" style="color:'+col(fl)+'">'+fmtS(fl)+'</div>'+
+      '<div class="grid">'+
+        '<div><span>方向</span><span style="color:var(--down)">做空 SHORT</span></div>'+
+        '<div><span>开仓价</span><span class="mono">'+p.entry.toFixed(3)+'</span></div>'+
+        '<div><span>名义</span><span class="mono">'+fmtW(p.notional)+'</span></div>'+
+        '<div><span>杠杆</span><span class="mono">'+p.lev.toFixed(0)+'x</span></div>'+
+        '<div><span>保证金</span><span class="mono">'+fmtW(p.margin)+'</span></div>'+
+        '<div><span>保证金回报</span><span class="mono" style="color:'+col(fl)+'">'+(fl/p.margin*100).toFixed(1)+'%</span></div>'+
+        '<div><span>强平价</span><span class="mono" style="color:var(--up)">'+lp.toFixed(3)+'</span></div>'+
+        '<div><span>距强平</span><span class="mono">'+((lp-curPrice())/curPrice()*100).toFixed(2)+'%</span></div>'+
+      '</div>'+
+      '<div class="riskbar"><i style="width:'+used+'%;background:'+(used>75?'var(--up)':(used>45?'var(--orange)':'var(--down)'))+'"></i></div>'+
+      '<div class="tagmini mono" style="text-align:right;margin-top:3px">保证金消耗 '+used.toFixed(1)+'%'+(p.sl?' · SL '+p.sl.toFixed(2):'')+(p.tp?' · TP '+p.tp.toFixed(2):'')+'</div>'+
+      '<div style="margin-top:9px"><button class="btn-close" id="btnClose">平仓结算 CLOSE</button></div>';
+    $('btnClose').onclick = function(){ closePos('手动平仓'); };
+  }
+
+  /* ---------- K 线图 ---------- */
+  var geo = null, hover = null;
+  function drawChart(){
+    var dpr = window.devicePixelRatio||1, w = cv.clientWidth||800, h = cv.clientHeight||340;
+    cv.width = w*dpr; cv.height = h*dpr;
+    ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,w,h);
+    var padL=8, padR=64, padT=12, padB=18;
+    var pts = S.hist.slice(-CFG.maxPoints);
+    var lo=Infinity, hi=-Infinity, i;
+    for(i=0;i<pts.length;i++){ lo=Math.min(lo,pts[i].l); hi=Math.max(hi,pts[i].h); }
+    if(S.pos){ lo=Math.min(lo,S.pos.entry,liqPrice(S.pos)); hi=Math.max(hi,S.pos.entry,liqPrice(S.pos)); }
+    if(lo===hi){ lo-=0.5; hi+=0.5; }
+    var span=hi-lo; lo-=span*0.10; hi+=span*0.10;
+    var PW = w-padL-padR, PH = h-padT-padB;
+    var X = function(i){ return padL + (pts.length<=1?PW/2:(i/(pts.length-1))*PW); };
+    var Y = function(p){ return padT + (1-(p-lo)/(hi-lo))*PH; };
+    geo = {X:X,Y:Y,padL:padL,padR:padR,padT:padT,padB:padB,w:w,h:h,n:pts.length,lo:lo,hi:hi};
+
+    // 网格
+    ctx.font='10px Consolas,monospace'; ctx.fillStyle='#4d5f74'; ctx.strokeStyle='#17202c'; ctx.lineWidth=1;
+    for(var g=0; g<=4; g++){
+      var y = padT + g*PH/4;
+      ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(w-padR,y); ctx.stroke();
+      ctx.fillText((hi - g*(hi-lo)/4).toFixed(2), w-padR+6, y+3);
+    }
+    for(var gx=0; gx<=6; gx++){
+      var x = padL + gx*PW/6;
+      ctx.beginPath(); ctx.moveTo(x,padT); ctx.lineTo(x,h-padB); ctx.stroke();
+    }
+
+    // MA5
+    if(pts.length>=5){
+      ctx.beginPath(); var started=false;
+      for(i=4;i<pts.length;i++){
+        var m=0; for(var k=0;k<5;k++) m += pts[i-k].c; m/=5;
+        var xx=X(i), yy=Y(m);
+        if(!started){ ctx.moveTo(xx,yy); started=true; } else ctx.lineTo(xx,yy);
+      }
+      ctx.strokeStyle='rgba(94,169,255,.75)'; ctx.lineWidth=1.2; ctx.stroke();
+    }
+
+    // 蜡烛
+    var bw = Math.max(1.6, (PW/Math.max(pts.length,1))*0.62);
+    for(i=0;i<pts.length;i++){
+      var c = pts[i], up = c.c>=c.o;
+      var cx = X(i), colr = up ? '#ff5d6c' : '#31d68f';
+      ctx.strokeStyle = colr; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(cx, Y(c.h)); ctx.lineTo(cx, Y(c.l)); ctx.stroke();
+      var y1 = Y(Math.max(c.o,c.c)), y2 = Y(Math.min(c.o,c.c));
+      ctx.fillStyle = colr;
+      ctx.fillRect(cx-bw/2, y1, bw, Math.max(1, y2-y1));
+    }
+
+    // 持仓参考线
+    if(S.pos){
+      var p = S.pos;
+      function hline(v, color, label, dash, above){
+        if(v<=lo || v>=hi) return;
+        ctx.setLineDash(dash); ctx.strokeStyle=color; ctx.lineWidth=1.2;
+        ctx.beginPath(); ctx.moveTo(padL, Y(v)); ctx.lineTo(w-padR, Y(v)); ctx.stroke(); ctx.setLineDash([]);
+        ctx.fillStyle=color; ctx.font='10px Consolas,monospace';
+        ctx.fillText(label+' '+v.toFixed(2), padL+4, Y(v)+(above?-4:11));
+      }
+      hline(p.entry, '#ffcc57', '开仓', [5,4], true);
+      hline(liqPrice(p), '#ff5d6c', '强平', [2,4], false);
+      if(p.sl) hline(p.sl, '#ff9f43', 'SL', [7,3], true);
+      if(p.tp) hline(p.tp, '#5ea9ff', 'TP', [7,3], false);
+    }
+
+    // 最近价标签
+    var last = pts[pts.length-1], ly = Y(last.c), upc = last.c>=last.o;
+    ctx.fillStyle = upc ? '#ff5d6c' : '#31d68f';
+    ctx.fillRect(w-padR+2, ly-8, padR-4, 16);
+    ctx.fillStyle='#08101a'; ctx.font='bold 11px Consolas,monospace';
+    ctx.fillText(last.c.toFixed(3), w-padR+7, ly+4);
+
+    // 十字光标
+    if(hoverIdx !== null && geo && pts.length){
+      var idx = clamp(hoverIdx, 0, pts.length-1), cc = pts[idx];
+      var hx = X(idx), hy = clamp(hoverY, padT, h-padB);
+      ctx.setLineDash([3,3]); ctx.strokeStyle='rgba(160,180,200,.45)'; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(hx,padT); ctx.lineTo(hx,h-padB); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(padL,hy); ctx.lineTo(w-padR,hy); ctx.stroke(); ctx.setLineDash([]);
+      var pv = lo + (1-(hy-padT)/PH)*(hi-lo);
+      ctx.fillStyle='#1b2634'; ctx.fillRect(w-padR+2, hy-8, padR-4, 16);
+      ctx.fillStyle='#e6eef7'; ctx.font='10px Consolas,monospace';
+      ctx.fillText(pv.toFixed(3), w-padR+7, hy+4);
+      // 提示框
+      var txt = 'O '+cc.o.toFixed(3)+'  H '+cc.h.toFixed(3)+'  L '+cc.l.toFixed(3)+'  C '+cc.c.toFixed(3);
+      ctx.font='10px Consolas,monospace';
+      var tw = ctx.measureText(txt).width + 12;
+      var bx = clamp(hx - tw/2, padL, w-padR-tw);
+      ctx.fillStyle='rgba(12,18,26,.92)'; ctx.fillRect(bx, padT+2, tw, 17);
+      ctx.strokeStyle='#2b3a4d'; ctx.strokeRect(bx, padT+2, tw, 17);
+      ctx.fillStyle='#c8d6e4'; ctx.fillText(txt, bx+6, padT+13.5);
+    }
+  }
+  var hoverIdx = null, hoverY = 0;
+  cv.addEventListener('mousemove', function(e){
+    if(!geo || !geo.n) return;
+    var r = cv.getBoundingClientRect();
+    var x = e.clientX - r.left, y = e.clientY - r.top;
+    var PW = geo.w - geo.padL - geo.padR;
+    hoverY = y;
+    hoverIdx = Math.round((x - geo.padL)/PW*(geo.n-1));
+    drawChart();
+  });
+  cv.addEventListener('mouseleave', function(){ hoverIdx = null; drawChart(); });
+
+  /* ---------- 资金曲线 ---------- */
+  function drawSpark(){
+    var dpr = window.devicePixelRatio||1, w = sp.clientWidth||300, h = sp.clientHeight||52;
+    sp.width = w*dpr; sp.height = h*dpr;
+    sctx.setTransform(dpr,0,0,dpr,0,0); sctx.clearRect(0,0,w,h);
+    var arr = S.equityCurve.slice();
+    if(arr.length < 2){ arr = [S.startFund, S.startFund]; }
+    var lo = Math.min.apply(null, arr), hi = Math.max.apply(null, arr), base = S.startFund;
+    lo = Math.min(lo, base); hi = Math.max(hi, base);
+    if(hi===lo){ hi = lo + Math.max(1, Math.abs(lo)*0.01); }
+    var pad = 6, PW = w-8, PH = h-pad*2;
+    var X = function(i){ return 4 + (arr.length<=1?0:(i/(arr.length-1))*PW); };
+    var Y = function(v){ return pad + (1-(v-lo)/(hi-lo))*PH; };
+    // 起始基准线
+    sctx.setLineDash([4,4]); sctx.strokeStyle='#2a3644'; sctx.lineWidth=1;
+    sctx.beginPath(); sctx.moveTo(4, Y(base)); sctx.lineTo(w-4, Y(base)); sctx.stroke(); sctx.setLineDash([]);
+    // 面积
+    var last = arr[arr.length-1], good = last>=base;
+    var grad = sctx.createLinearGradient(0,0,0,h);
+    grad.addColorStop(0, good?'rgba(255,204,87,.26)':'rgba(255,93,108,.24)');
+    grad.addColorStop(1,'rgba(0,0,0,0)');
+    sctx.beginPath(); sctx.moveTo(X(0), Y(arr[0]));
+    for(var i=1;i<arr.length;i++) sctx.lineTo(X(i), Y(arr[i]));
+    sctx.lineTo(X(arr.length-1), h); sctx.lineTo(X(0), h); sctx.closePath();
+    sctx.fillStyle = grad; sctx.fill();
+    sctx.beginPath(); sctx.moveTo(X(0), Y(arr[0]));
+    for(var j=1;j<arr.length;j++) sctx.lineTo(X(j), Y(arr[j]));
+    sctx.strokeStyle = good?'#ffcc57':'#ff5d6c'; sctx.lineWidth=1.8; sctx.stroke();
+    sctx.fillStyle = good?'#ffcc57':'#ff5d6c';
+    sctx.beginPath(); sctx.arc(X(arr.length-1), Y(last), 2.6, 0, Math.PI*2); sctx.fill();
+    $('sparkTag').textContent = '基准 ' + fmtW(base) + ' · 现 ' + fmtW(last);
+    $('sparkTag').style.color = good?'var(--gold)':'var(--up)';
+  }
+
+  /* ---------- 存档面板 ---------- */
+  function renderSave(){
+    $('saveBal').textContent = fmtJ(save.fund);
+    $('savePeak').textContent = fmtJ(save.peak);
+    var total = save.fund - CFG.initFund;
+    $('saveTotal').textContent = fmtS(total);
+    $('saveTotal').style.color = col(total);
+    $('saveTag').textContent = save.history.length ? '近 ' + save.history.length + ' 局' : '';
+    var wrap = $('histWrap');
+    if(!save.history.length){ wrap.innerHTML = '<div class="empty" style="padding:8px 0">还没有完成任何一局</div>'; return; }
+    var h = save.history.slice(-6).reverse();
+    var html = '<table class="hist"><tr><th>#</th><th>结果</th><th>收益率</th><th>结束资金</th></tr>';
+    for(var i=0;i<h.length;i++){
+      var r = h[i];
+      html += '<tr><td class="mono" style="color:var(--dim)">'+r.round+'</td>'+
+              '<td class="mono" style="color:'+(r.pnl>=0?'var(--gold)':'var(--up)')+'">'+fmtW(r.pnl)+'</td>'+
+              '<td class="mono" style="color:'+(r.ret>=0?'var(--down)':'var(--up)')+'">'+(r.ret>=0?'+':'')+r.ret.toFixed(1)+'%</td>'+
+              '<td class="mono">'+fmtW(r.end)+'</td></tr>';
+    }
+    wrap.innerHTML = html + '</table>';
+  }
+
+  /* ================= 交易 ================= */
+  function maxNotional(){
+    var lev = parseFloat($('lev').value)||1;
+    return Math.max(100000, Math.floor(freeCash()*lev/100000)*100000);
+  }
+  function syncNotional(v, silent){
+    var lev = parseFloat($('lev').value)||1;
+    var mx = maxNotional();
+    if($('notionalRange').max != mx) $('notionalRange').max = mx;
+    v = clamp(isFinite(v)?v:0, 100000, Math.max(mx,100000));
+    var el = document.activeElement;
+    if(el !== $('notionalRange')) $('notionalRange').value = v;
+    if(el !== $('notionalInput')) $('notionalInput').value = v;
+    $('notionalTxt').textContent = fmtJ(v) + '  (' + fmtW(v) + ')';
+    $('marginTxt').textContent = fmtJ(v/lev) + '  (' + fmtW(v/lev) + ')';
+    var ok = v/lev <= freeCash() + 1e-6;
+    $('btnShort').disabled = !ok || S.over;
+    $('btnShort').textContent = ok ? '建立空单 SHORT ▼' : '保证金不足';
+  }
+
+  function openShort(){
+    if(S.over) return;
+    var lev = parseFloat($('lev').value)||1;
+    var notional = clamp(parseFloat($('notionalInput').value)||0, 100000, freeCash()*lev);
+    var margin = notional/lev;
+    if(margin > freeCash()+1e-6){ log('✗ 保证金不足：需要 '+fmtJ(margin)+'，可用 '+fmtJ(freeCash()), 'bad'); return; }
+    var px = curPrice();
+    var sl = parseFloat($('sl').value)||null, tp = parseFloat($('tp').value)||null;
+    if(sl && sl <= px){ sl=null; log('⚠ 做空的止损价必须高于现价，已忽略', 'bad'); }
+    if(tp && tp >= px){ tp=null; log('⚠ 做空的止盈价必须低于现价，已忽略', 'bad'); }
+
+    if(S.pos){
+      var o = S.pos, tot = o.notional + notional;
+      S.pos = { entry:(o.entry*o.notional + px*notional)/tot, notional:tot,
+                margin:o.margin+margin, lev:tot/(o.margin+margin), sl:sl||o.sl, tp:tp||o.tp };
+      log('▲ 加仓做空 '+fmtW(notional)+' @ '+px.toFixed(3)+'，合计名义 '+fmtW(tot));
+    } else {
+      S.pos = {entry:px, notional:notional, margin:margin, lev:lev, sl:sl, tp:tp};
+      log('▼ 建立空单 名义 '+fmtW(notional)+' @ '+px.toFixed(3)+' · '+lev+'x · 保证金 '+fmtW(margin));
+      pushEquity();
+    }
+    SFX.open(); renderAll();
+  }
+
+  function closePos(reason){
+    if(!S.pos || S.over) return;
+    var p = S.pos, px = curPrice(), fl = pnlOf(p, px);
+    S.realized += fl; S.trades.push(fl);
+    if(fl>S.best) S.best = fl; if(fl<S.worst) S.worst = fl;
+    S.pos = null; pushEquity();
+    var kind = fl>=0 ? 'win':'bad';
+    log('■ '+reason+' @ '+px.toFixed(3)+'，本笔 '+fmtS(fl)+'，本局累计 '+fmtS(S.realized), kind);
+    if(fl>=0) SFX.win(); else SFX.lose();
+    $('sl').value=''; $('tp').value='';
+    renderAll();
+  }
+
+  function forceLiquidate(){
+    if(!S.pos) return;
+    var p = S.pos, lp = liqPrice(p);
+    var fl = -p.margin*CFG.liqRatio;
+    S.realized += fl; S.trades.push(fl);
+    if(fl<S.worst) S.worst = fl;
+    S.pos = null; pushEquity();
+    log('☠ 强制平仓！汇率触及 '+lp.toFixed(3)+'，亏掉保证金 '+fmtW(p.margin*CFG.liqRatio), 'bad');
+    SFX.bust();
+    $('sl').value=''; $('tp').value='';
+    renderAll();
+    if(equity() <= CFG.minFund) endGame(true);
+  }
+
+  function pushEquity(){ S.equityCurve.push(equity()); if(S.equityCurve.length>400) S.equityCurve.shift(); }
+
+  function nextTick(){
+    if(S.over) return;
+    S.tick++;
+    var c = stepTick(S, false);
+    S.hist.push(c);
+    if(S.hist.length>420) S.hist.shift();
+    S.price = c.c;
+
+    if(S.lastNews){
+      var im = S.lastNews.impact;
+      log('📰 '+S.lastNews.t+'（'+(im>0?'利空空头 ':'利好空头 ')+(im*100).toFixed(2)+'%）','news');
+      SFX.news();
+    } else {
+      log('报价 '+c.c.toFixed(3)+'  O '+c.o.toFixed(3)+'  H '+c.h.toFixed(3)+'  L '+c.l.toFixed(3));
+      SFX.tick();
+    }
+
+    if(S.pos){
+      var p = S.pos;
+      if(-pnlOf(p, c.c) >= p.margin*CFG.liqRatio){ forceLiquidate(); }
+      else if(p.sl && c.c >= p.sl){ closePos('止损触发'); }
+      else if(p.tp && c.c <= p.tp){ closePos('止盈触发'); }
+    }
+    pushEquity(); renderAll();
+    if(!S.over && S.tick >= CFG.maxTicks) endGame(false);
+  }
+
+  function endGame(busted){
+    if(S.pos) closePos('到期结算');
+    S.over = true; stopAuto();
+    var init = S.startFund, fin = S.startFund + S.realized;
+    var ret = init ? (fin-init)/init*100 : 0;
+    var wins = S.trades.filter(function(x){return x>0;}).length;
+    var rank, rc;
+    if(fin <= CFG.minFund){            rank='破产 · 保证金是唯一的命';      rc='var(--up)'; }
+    else if(busted){                   rank='E · 爆仓：一单就把保证金打穿'; rc='var(--up)'; }
+    else if(ret>=60){                  rank='S · 宏观狙击手：你读透了趋势'; rc='var(--gold)'; }
+    else if(ret>=25){                  rank='A · 稳健空头：纪律战胜情绪';   rc='var(--gold)'; }
+    else if(ret>=5){                   rank='B · 小赚离场：活下来就是赢';   rc='var(--down)'; }
+    else if(ret>0){                    rank='C · 险胜：赚到了，但仓位太轻'; rc='var(--down)'; }
+    else if(ret===0){                  rank='C · 持平：白忙一整局';         rc='var(--muted)'; }
+    else if(ret>-15){                  rank='D · 微亏：学费交得还算便宜';   rc='var(--muted)'; }
+    else {                             rank='E · 逆势硬扛：空头死于反弹';   rc='var(--up)'; }
+
+    save.history.push({round:save.round, start:init, end:fin, pnl:fin-init, ret:ret});
+    if(save.history.length>20) save.history.shift();
+    save.fund = Math.max(0, Math.round(fin));
+    save.peak = Math.max(save.peak, save.fund);
+    save.round += 1;
+    writeSave();
+
+    var bankrupt = save.fund <= CFG.minFund;
+    $('rTitle').textContent = bankrupt ? '资金耗尽' : (busted ? '你爆仓了' : (fin>=init ? '本局盈利' : '本局亏损'));
+    $('rRank').textContent = rank; $('rRank').style.color = rc;
+    $('rInit').textContent = fmtJ(init);
+    $('rFinal').textContent = fmtJ(fin);
+    $('rRet').textContent = (ret>=0?'+':'')+ret.toFixed(2)+'%'; $('rRet').style.color = col(ret);
+    $('rTrades').textContent = S.trades.length + ' / ' + (S.trades.length? (wins/S.trades.length*100).toFixed(0)+'%':'0%');
+    $('rBest').textContent = S.best?fmtS(S.best):'¥0';
+    $('rWorst').textContent = S.worst?fmtS(S.worst):'¥0';
+    var nb = $('rNextBox');
+    if(bankrupt){ nb.className='nextline bad'; nb.querySelector('.k').textContent='资金已不足以继续交易';
+      $('rNext').textContent = fmtJ(save.fund); $('btnAgain').style.display='none'; $('btnBankrupt').style.display=''; }
+    else { nb.className='nextline'; nb.querySelector('.k').textContent='下一局起始资金（已存档）';
+      $('rNext').textContent = fmtJ(save.fund)+'  ('+fmtW(save.fund)+')'; $('btnAgain').style.display=''; $('btnBankrupt').style.display='none'; }
+    $('ov').classList.add('on');
+    log('===== 第 '+save.history[save.history.length-1].round+' 局结束：'+rank+'，结余 '+fmtW(fin)+' =====', fin>=init?'win':'bad');
+    renderAll();
+  }
+
+  function stopAuto(){ if(timer){ clearInterval(timer); timer=null; $('btnAuto').textContent='自动 AUTO ▶'; } }
+  function toggleAuto(){
+    if(timer){ stopAuto(); return; }
+    if(S.over) return;
+    $('btnAuto').textContent='暂停 ⏸';
+    timer = setInterval(function(){ if(S.over){ stopAuto(); return; } nextTick(); }, 700);
+  }
+
+  function startRound(){
+    stopAuto();
+    $('ov').classList.remove('on');
+    $('log').innerHTML='';
+    $('sl').value=''; $('tp').value='';
+    S = newRound();
+    var lev0 = parseFloat($('lev').value)||10;
+    var defN = clamp(
+      Math.min(20000000, Math.floor(freeCash()*lev0*0.34/100000)*100000),
+      100000, maxNotional());
+    $('notionalInput').value = defN;
+    log('── 第 '+save.round+' 局开始 ── 本金 '+fmtJ(S.startFund)+'（'+fmtW(S.startFund)+'），USD/JPY 开盘 '+S.price.toFixed(3));
+    log('提示：你只能做空。汇率下跌赚钱，上涨亏钱。按 空格 推进，S 建仓，C 平仓。');
+    pushEquity(); renderAll();
+  }
+
+  function wipe(){
+    if(!confirm('清空存档？资金将重置为 ¥20,000,000，局数归 1。')) return;
+    save.fund = CFG.initFund; save.peak = CFG.initFund; save.round = 1; save.history = [];
+    writeSave(); startRound();
+  }
+
+  /* ================= 教程 ================= */
+  var TUT = [
+    { title:'你要做的事',
+      body:'<p>你是一名外汇投机者，拿着一笔 <b>2000 万日元</b> 本金，在 USD/JPY（美元兑日元）上 <b>只能做空</b>——没有做多按钮，别找了。</p>'+
+           '<p>一局 = <b>60 个回合</b>，每个回合代表 15 分钟行情。结算后，<b>剩下的钱会存进存档，直接变成下一局的本金</b>：赚了就滚雪球，亏了就缩水，亏到 10 万日元以下就得从头再来。</p>'+
+           '<div class="eg"><div class="row"><span>目标</span><span>让本金不断增长，同时别爆仓</span></div>'+
+           '<div class="row"><span>核心矛盾</span><span>仓位越大赚得越快，也死得越快</span></div></div>'+
+           '<p>所有数据都是本地模拟的，和真实市场无关，随便玩。</p>' },
+    { title:'做空到底怎么赚钱',
+      body:'<p>USD/JPY 从 150.000 跌到 145.000，就是日元升值、美元贬值——<b>你赚钱</b>。涨到 155，你亏钱。</p>'+
+           '<div class="eg"><div class="row"><span>盈亏公式</span><span>（开仓价 − 现价）÷ 开仓价 × 名义金额</span></div></div>'+
+           '<p>举个例子：名义金额 <b>2000 万日元</b>，做空在 150.000：</p>'+
+           '<ul><li>汇率跌到 <b>148.500</b>（−1.0%）→ 你赚 <b class="win">+20 万日元</b></li>'+
+           '<li>汇率涨到 <b>151.500</b>（+1.0%）→ 你亏 <b class="lose">−20 万日元</b></li></ul>'+
+           '<p>注意：<b>名义金额 ≠ 你的本金</b>。名义 2000 万不代表你要掏 2000 万，那只是用来计算盈亏的"标的规模"。</p>' },
+    { title:'杠杆与保证金',
+      body:'<p>你实际掏出来押在桌上的钱叫 <b>保证金</b> = 名义金额 ÷ 杠杆。</p>'+
+           '<div class="eg"><div class="row"><span>10x · 名义 2000 万</span><span>保证金 200 万</span></div>'+
+           '<div class="row"><span>20x · 名义 4000 万</span><span>保证金 200 万</span></div>'+
+           '<div class="row"><span>1x · 名义 200 万</span><span>保证金 200 万</span></div></div>'+
+           '<p>同样是 200 万保证金，杠杆越高，同样的汇率波动带来的盈亏就越大。所以真正该看的不是"赚了多少日元"，而是 <b>保证金回报率 = 盈亏 ÷ 保证金</b>——持仓面板里那个百分比。</p>'+
+           '<p>右侧滑杆调名义金额，25% / 50% / 75% / 满仓 是"把可用资金按当前杠杆用掉多少"的快捷键。</p>' },
+    { title:'爆仓：唯一的死法',
+      body:'<p>当浮动亏损吃掉 <b>保证金的 90%</b>，券商会 <b>强制平仓</b>，剩下的钱不还给你——这就是爆仓。</p>'+
+           '<div class="eg"><div class="row"><span>10x 杠杆</span><span>汇率反向涨 9.0% 爆仓</span></div>'+
+           '<div class="row"><span>20x 杠杆</span><span>汇率反向涨 4.5% 爆仓</span></div>'+
+           '<div class="row"><span>50x 杠杆</span><span>汇率反向涨 1.8% 爆仓</span></div></div>'+
+           '<p>外汇一天波动 0.5%~1% 很常见，所以 <b>50x 满仓基本等于抛硬币</b>。</p>'+
+           '<p>两个保命工具：</p>'+
+           '<ul><li><b>止损价</b>（橙色虚线）：汇率涨到这个价自动离场，把亏损钉死</li>'+
+           '<li><b>止盈价</b>（蓝色虚线）：跌到这个价自动落袋，别贪</li></ul>'+
+           '<p>持仓面板下方那根彩条是 <b>保证金消耗度</b>，变红就离强平不远了。图上红色虚线就是你的强平价。</p>' },
+    { title:'界面与操作',
+      body:'<ul>'+
+           '<li><b>顶部五张卡</b>：权益 / 可用资金 / 浮动盈亏 / 本局已实现 / 回合进度</li>'+
+           '<li><b>中间 K 线图</b>：红涨绿跌。<span style="color:#ffcc57">金线</span>=开仓价，<span style="color:#ff5d6c">红虚线</span>=强平价，<span style="color:#ff9f43">橙</span>=止损，<span style="color:#5ea9ff">蓝</span>=止盈，蓝实线是 MA5 均线。鼠标移到图上会出十字光标和 OHLC 数值。</li>'+
+           '<li><b>资金曲线</b>：本局权益相对起始本金的变化，虚线是基准</li>'+
+           '<li><b>存档面板</b>：当前本金（下一局起始）、历史峰值、累计盈亏、最近战绩</li>'+
+           '<li><b>市场日志</b>：每回合的 OHLC，橙色是突发新闻（日本央行加息、美国 CPI、干预汇市……会跳空）</li>'+
+           '</ul>'+
+           '<p>快捷键：<kbd>空格</kbd> 下一步 · <kbd>S</kbd> 做空 · <kbd>C</kbd> 平仓 · <kbd>A</kbd> 自动 · <kbd>H</kbd> 再看一遍本教程</p>'+
+           '<p>右上角 <b>?</b> 随时重开教程，<b>⟲</b> 清空存档回到 2000 万，<b>🔇</b> 开关音效。</p>' },
+    { title:'第一条建议',
+      body:'<p>新手第一局，建议这么干：</p>'+
+           '<ul><li>杠杆选 <b>5x</b> 或 <b>10x</b>，先别碰 50x</li>'+
+           '<li>名义金额用 <b>25%~50%</b>，别满仓</li>'+
+           '<li>建仓后立刻填一个 <b>止损价</b>（比现价高 0.5~1 日元）</li>'+
+           '<li>用 <b>自动</b> 让它跑，看几分钟行情怎么走，再手动操作</li></ul>'+
+           '<p>记住：<b>做空的最大敌人是"它涨了一点，我再等等"</b>。空头死于反弹，不是死于下跌。</p>'+
+           '<p style="color:var(--muted);font-size:12px">准备好了就点下面的按钮开始第 1 局。祝你好运。</p>' }
+  ];
+  var tutIdx = 0;
+  function renderTut(){
+    var t = TUT[tutIdx];
+    $('tTitle').textContent = t.title;
+    $('tStep').textContent = 'STEP ' + (tutIdx+1) + ' / ' + TUT.length;
+    $('tBody').innerHTML = t.body;
+    var d = '';
+    for(var i=0;i<TUT.length;i++) d += '<i class="'+(i===tutIdx?'on':'')+'"></i>';
+    $('tDots').innerHTML = d;
+    $('tPrev').style.visibility = tutIdx===0 ? 'hidden' : '';
+    $('tNext').textContent = tutIdx===TUT.length-1 ? '开始交易 ▸' : '下一步';
+  }
+  function openTut(){ tutIdx = 0; renderTut(); $('ovTut').classList.add('on'); }
+  function closeTut(){ $('ovTut').classList.remove('on'); save.tutorial = true; writeSave(); }
+  $('tNext').addEventListener('click', function(){
+    if(tutIdx < TUT.length-1){ tutIdx++; renderTut(); } else closeTut();
+  });
+  $('tPrev').addEventListener('click', function(){ if(tutIdx>0){ tutIdx--; renderTut(); } });
+  $('tSkip').addEventListener('click', closeTut);
+  $('ovTut').addEventListener('click', function(e){ if(e.target === this) closeTut(); });
+
+  /* ================= 事件 ================= */
+  $('notionalRange').addEventListener('input', function(){ syncNotional(parseFloat(this.value)); });
+  $('notionalInput').addEventListener('input', function(){ syncNotional(parseFloat(this.value)||0); });
+  $('lev').addEventListener('change', function(){
+    var lev = parseFloat(this.value)||1;
+    syncNotional(clamp(parseFloat($('notionalInput').value)||0, 100000, Math.max(maxNotional(),100000)));
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('.chip'), function(c){
+    c.addEventListener('click', function(){
+      var lev = parseFloat($('lev').value)||1;
+      var v = Math.floor(freeCash()*lev*parseFloat(c.dataset.p)/100000)*100000;
+      syncNotional(Math.max(100000, v));
+    });
+  });
+  $('btnShort').addEventListener('click', openShort);
+  $('btnNext').addEventListener('click', nextTick);
+  $('btnAuto').addEventListener('click', toggleAuto);
+  $('btnFlat').addEventListener('click', function(){ closePos('手动平仓'); });
+  $('btnAgain').addEventListener('click', startRound);
+  $('btnBankrupt').addEventListener('click', function(){
+    save.fund = CFG.initFund; save.peak = Math.max(save.peak, CFG.initFund); save.round = 1; save.history = [];
+    writeSave(); startRound();
+  });
+  $('btnHelp').addEventListener('click', openTut);
+  $('btnWipe').addEventListener('click', wipe);
+  $('btnSound').addEventListener('click', function(){
+    soundOn = !soundOn; save.sound = soundOn; writeSave();
+    this.textContent = soundOn ? '🔊' : '🔇'; this.classList.toggle('on', soundOn);
+    if(soundOn) SFX.tick();
+  });
+
+  document.addEventListener('keydown', function(e){
+    if(e.target && (e.target.tagName==='INPUT' || e.target.tagName==='SELECT')) return;
+    if($('ovTut').classList.contains('on')){
+      if(e.key==='Escape') closeTut();
+      else if(e.key==='ArrowRight') $('tNext').click();
+      else if(e.key==='ArrowLeft') $('tPrev').click();
+      return;
+    }
+    if(e.code==='Space'){ e.preventDefault(); nextTick(); }
+    else if(e.key==='s'||e.key==='S'){ openShort(); }
+    else if(e.key==='c'||e.key==='C'){ closePos('手动平仓'); }
+    else if(e.key==='a'||e.key==='A'){ toggleAuto(); }
+    else if(e.key==='h'||e.key==='H'){ openTut(); }
+  });
+  window.addEventListener('resize', function(){ drawChart(); drawSpark(); });
+
+  /* ================= 启动 ================= */
+  loadSave();
+  soundOn = save.sound;
+  $('btnSound').textContent = soundOn ? '🔊' : '🔇';
+  $('btnSound').classList.toggle('on', soundOn);
+  startRound();
+  if(!save.tutorial) openTut();
+})();
+</script>
+</body>
+</html>
