@@ -23,14 +23,21 @@
   body {
     margin: 0;
     min-height: 100vh;
+    /* 壁纸加载失败 / 还没加载出来时也不会是纯黑 */
     background: linear-gradient(135deg, #4c5fd7 0%, #764ba2 45%, #2b1055 100%);
     color: #0f172a;
     font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB',
                  'Microsoft YaHei', 'Source Han Sans SC', 'Noto Sans CJK SC',
                  'WenQuanYi Micro Hei', sans-serif;
+    /* 双击换壁纸时不会糊一层蓝色高亮 */
+    -webkit-user-select: none; user-select: none;
   }
 
-  /* ============ 背景舞台（壁纸 + 提亮遮罩，与导航页同一套） ============ */
+  /* ==================================================================
+     壁纸层（与博客主页同一套机制）
+     显示：.stage::before 铺满，图加载成功后加 .has-wallpaper 淡入
+     切换：先加 .wp-fading 淡出 → 换图 → 移除类淡入
+     ================================================================== */
   .stage {
     position: fixed; inset: 0; z-index: 0;
   }
@@ -38,9 +45,12 @@
     content: ''; position: absolute; inset: 0;
     background-image: var(--wallpaper, none);
     background-size: cover; background-position: center;
-    opacity: 0; transition: opacity .5s ease;
+    opacity: 0; transition: opacity .28s ease;
   }
   .stage.has-wallpaper::before { opacity: 1; }
+  /* 切换中：壁纸淡出，露出底下的紫蓝渐变 */
+  .stage.wp-fading::before { opacity: 0; }
+  /* 常驻淡白遮罩 —— 提亮壁纸、保证卡片文字可读性 */
   .stage::after {
     content: ''; position: absolute; inset: 0;
     background: rgba(255, 255, 255, 0.45);
@@ -98,11 +108,33 @@
   }
   .card.playable:active { transform: translateY(-1px) scale(.99); }
   /* 还没做完的：不可点，整体压暗一档 */
-  .card.pending { opacity: .62; cursor: default; }
+  .card.pending { opacity: .62; }
 
-  /* 右下角「开始玩」提示：默认藏在封面下方，hover 才浮上来 */
+  /* ---------- 图标区 ----------
+     中等尺寸图标（72×72）：没配封面图时显示 icon 文字，配了就整块换封面图 */
+  .icon-area {
+    height: 112px; position: relative;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .card-icon {
+    width: 72px; height: 72px; border-radius: 18px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px; font-weight: 800; letter-spacing: .5px;
+    color: #fff; text-shadow: 0 2px 8px rgba(0, 0, 0, .22);
+    box-shadow: 0 6px 16px rgba(30, 20, 80, .28);
+    /* 底色由 JS 按 data.js 的 color 注入 */
+  }
+  .icon-area img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+
+  /* 右上状态徽章 / 右下「开始玩」 */
+  .status {
+    position: absolute; top: 10px; right: 10px; z-index: 1;
+    font-size: 11px; font-weight: 700; color: #1f2937;
+    background: rgba(255, 255, 255, .82);
+    padding: 3px 9px; border-radius: 8px;
+  }
   .play {
-    position: absolute; right: 10px; bottom: 10px;
+    position: absolute; right: 10px; bottom: 10px; z-index: 1;
     font-size: 11.5px; font-weight: 700; color: #fff;
     background: rgba(31, 41, 55, .62);
     padding: 4px 10px; border-radius: 9px;
@@ -112,35 +144,24 @@
   .card.playable:hover .play { opacity: 1; transform: translateY(0); }
   /* 触屏没有 hover，直接常显 */
   @media (hover: none) { .play { opacity: 1; transform: none; } }
-  .cover {
-    height: 108px; position: relative;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 30px; font-weight: 700; color: rgba(255,255,255,.94);
-    text-shadow: 0 2px 10px rgba(0,0,0,.22);
-  }
-  .cover img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-  .status {
-    position: absolute; top: 10px; right: 10px;
-    font-size: 11px; font-weight: 700; color: #1f2937;
-    background: rgba(255,255,255,.82);
-    padding: 3px 9px; border-radius: 8px;
-  }
+
   .body { padding: 14px 16px 16px; flex: 1; display: flex; flex-direction: column; }
   .title { font-size: 16.5px; font-weight: 700; color: #1e293b; line-height: 1.4; }
   .meta { font-size: 12px; color: #64748b; margin-top: 5px; }
   .stars { font-size: 13px; color: #f59e0b; margin-top: 8px; letter-spacing: 1px; }
   .comment {
     font-size: 12.5px; color: #475569; line-height: 1.65; margin-top: 10px;
-    padding-top: 10px; border-top: 1px solid rgba(255,255,255,.6);
+    padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, .6);
   }
 
   .empty {
     padding: 40px 24px; border-radius: 22px; text-align: center;
     background: var(--glass-bg); border: 1px solid var(--glass-border);
     color: #475569; font-size: 14px; line-height: 1.8;
+    -webkit-user-select: text; user-select: text;
   }
   .empty code {
-    font-size: 13px; color: #312e81; background: rgba(255,255,255,.55);
+    font-size: 13px; color: #312e81; background: rgba(255, 255, 255, .55);
     padding: 2px 7px; border-radius: 6px;
   }
 
@@ -243,7 +264,7 @@
    胡萝卜游戏平台 · 渲染
    数据唯一来源：gaming_platform/data.js 里的 window.GAMING_PLATFORM_DATA
    --------------------------------------------------------------------------
-   加 / 改游戏 → 编辑同目录的 data.js，不用动这个 HTML。
+   加 / 改游戏、换壁纸 → 编辑同目录的 data.js，不用动这个 HTML。
    ========================================================================== */
 
 /* ---------- 确保 data.js 到位：绝对路径没中就再试同目录，两次都失败也要渲染 ---------- */
@@ -259,9 +280,12 @@
 function boot() {
   var D = window.GAMING_PLATFORM_DATA || null;
 
-  var grid = document.getElementById('grid');
-  var sub  = document.getElementById('subtitle');
+  var grid    = document.getElementById('grid');
+  var sub     = document.getElementById('subtitle');
   var titleEl = document.getElementById('title');
+  var stage   = document.getElementById('stage');
+
+  var WALLPAPERS = (D && Array.isArray(D.WALLPAPERS)) ? D.WALLPAPERS.slice() : [];
 
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -275,6 +299,17 @@ function boot() {
   function grad(color) {
     var c = color || '#667eea';
     return 'linear-gradient(135deg, ' + c + ' 0%, #764ba2 100%)';
+  }
+  /* 图标文字：优先用 data.js 的 icon，没填就自动从标题里生成
+     "FX 模拟器" → FX（抽英文字母）
+     "我的游戏"  → 我的（纯中文取前两字）
+     想精确控制就在 data.js 里直接写 icon: 'FX' */
+  function iconText(g) {
+    if (g.icon) return String(g.icon);
+    var t = String(g.title || '');
+    var en = (t.match(/[A-Za-z]+/g) || []).join('').toUpperCase();
+    if (en) return en.slice(0, 4);
+    return t.slice(0, 2) || '?';
   }
   function showEmpty(msg) {
     var tip = document.createElement('div');
@@ -292,23 +327,73 @@ function boot() {
     return;
   }
 
-  var GAMES = Array.isArray(D.GAMES) ? D.GAMES : [];
   titleEl.textContent = D.TITLE || '胡萝卜游戏平台';
 
-  /* ---------- 壁纸：读 data.js 的 WALLPAPERS，没配就用纯紫蓝渐变 ---------- */
-  (function wallpaper() {
-    var url = (Array.isArray(D.WALLPAPERS) && D.WALLPAPERS[0]) || '';
-    if (!url) return;
-    var stage = document.getElementById('stage');
-    var img = new Image();
-    img.onload = function () {
-      stage.style.setProperty('--wallpaper', 'url("' + url + '")');
-      stage.classList.add('has-wallpaper');
-    };
-    img.src = url;
+  /* ==================================================================
+     壁纸（与博客主页同一套机制）
+     - 显示：加载成功后淡入
+     - 切换：双击【页面空白处】才切，卡片 / 返回按钮 / 空态块不响应
+     ================================================================== */
+  var wpIndex = 0;
+  var wpSwitching = false;
+
+  var wpCache = {};
+  function preload(url) {
+    if (!url || wpCache[url]) return wpCache[url];
+    wpCache[url] = new Promise(function (resolve) {
+      var img = new Image();
+      img.onload  = function () { resolve(true); };
+      img.onerror = function () { resolve(false); };
+      setTimeout(function () { resolve(false); }, 3000);   // 超时按失败，不谎报成功
+      img.src = url;
+    });
+    return wpCache[url];
+  }
+
+  function applyWallpaper(i) {
+    if (!WALLPAPERS.length) return;
+    stage.style.setProperty('--wallpaper', 'url("' + WALLPAPERS[i] + '")');
+    stage.classList.add('has-wallpaper');
+  }
+
+  async function nextWallpaper() {
+    if (wpSwitching || WALLPAPERS.length < 2) return;
+    wpSwitching = true;
+    var nextIndex = (wpIndex + 1) % WALLPAPERS.length;
+    await preload(WALLPAPERS[nextIndex]);
+    stage.classList.add('wp-fading');                 // 先淡出
+    setTimeout(function () {
+      wpIndex = nextIndex;
+      applyWallpaper(wpIndex);
+      stage.classList.remove('wp-fading');            // 再淡入
+      // 顺手把下一张也预载好，下次切换就不卡
+      preload(WALLPAPERS[(wpIndex + 1) % WALLPAPERS.length]);
+      setTimeout(function () { wpSwitching = false; }, 300);
+    }, 280);
+  }
+
+  (function initWallpaper() {
+    if (!WALLPAPERS.length) return;
+    preload(WALLPAPERS[0]).then(function (ok) {
+      if (ok) applyWallpaper(0);
+    });
+    if (WALLPAPERS.length > 1) preload(WALLPAPERS[1]);
+
+    /* 切换区域：页面空白处
+       ⚠️ 只认页面空白处 —— 卡片、返回按钮、空态块都属于"内容"，
+          在上面双击不该换壁纸（否则想开游戏却把背景换了）。 */
+    document.addEventListener('dblclick', function (e) {
+      if (e.target.closest && e.target.closest('.card, .back, .empty')) return;
+      nextWallpaper();
+    });
+    /* 双击的第二下 mousedown 会默认"选词"，这里直接拦掉 */
+    document.addEventListener('mousedown', function (e) {
+      if (e.detail >= 2) e.preventDefault();
+    });
   })();
 
   /* ---------- 渲染游戏卡片 ---------- */
+  var GAMES = Array.isArray(D.GAMES) ? D.GAMES : [];
   if (!GAMES.length) {
     showEmpty('还没有游戏条目 —— 到 <code>gaming_platform/data.js</code> 的 ' +
               '<code>GAMES</code> 数组里加几条就会出现在这里。');
@@ -319,9 +404,9 @@ function boot() {
   sub.textContent = D.SUBTITLE || ('共 ' + GAMES.length + ' 款自制游戏 · ' + ready + ' 款可玩');
 
   grid.innerHTML = GAMES.map(function (g) {
-    var cover = g.cover
+    var iconHtml = g.cover
       ? '<img src="' + esc(g.cover) + '" alt="">'
-      : '<span>' + esc(String(g.title || '?').slice(0, 1)) + '</span>';
+      : '<div class="card-icon" style="background:' + grad(g.color) + '">' + esc(iconText(g)) + '</div>';
     var meta = [g.platform, g.hours ? g.hours + ' 小时' : ''].filter(Boolean).join(' · ');
 
     /* 有 url → 整张卡片就是链接（点了直接进游戏）
@@ -330,7 +415,7 @@ function boot() {
     var attrs = g.url ? ' class="card playable" href="' + esc(g.url) + '"' : ' class="card pending"';
 
     var inner =
-      '<div class="cover" style="background:' + grad(g.color) + '">' + cover +
+      '<div class="icon-area">' + iconHtml +
         (g.status ? '<span class="status">' + esc(g.status) + '</span>' : '') +
         (g.url ? '<span class="play">▶ 开始玩</span>' : '') +
       '</div>' +
@@ -457,8 +542,9 @@ function createParticle(x, y) {
   setTimeout(() => p.remove(), 800);
 }
 
-/* 悬停反馈：箭头放大 + 微旋转（事件委托，动态插入的卡片同样生效） */
-const HOVER_SELECTOR = '.playable, .back, h1, p';
+/* 悬停反馈：箭头放大 + 微旋转（事件委托，动态插入的卡片同样生效）
+   ⚠️ .pending（还不能玩）不参与，避免给出"可以点"的错觉 */
+const HOVER_SELECTOR = '.playable, .back, h1';
 document.addEventListener('mouseover', (e) => {
   if (e.target.closest && e.target.closest(HOVER_SELECTOR)) qArrow.classList.add('hover');
 });
@@ -479,7 +565,6 @@ document.addEventListener('click', (e) => {
   document.body.appendChild(heart);
   setTimeout(() => heart.remove(), 1000);
 });
-
 </script>
 </body>
 </html>
