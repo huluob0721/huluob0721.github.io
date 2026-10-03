@@ -79,7 +79,7 @@
   .legend{display:flex;gap:9px;margin-left:auto;flex-wrap:wrap;}
   .legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:4px;vertical-align:middle;}
   canvas#cv{width:100%;height:350px;display:block;border-radius:8px;background:var(--panel2);cursor:crosshair;}
-  canvas#spark{width:100%;height:50px;display:block;border-radius:6px;background:var(--panel2);}
+  canvas#spark{width:100%;height:76px;display:block;border-radius:6px;background:var(--panel2);}
   @media (max-width:980px){ canvas#cv{height:270px;} }
   .bar{height:4px;background:var(--panel2);border-radius:3px;overflow:hidden;margin:7px 2px 3px;}
   .bar i{display:block;height:100%;background:linear-gradient(90deg,#2f7de0,#5ea9ff);width:0%;}
@@ -305,7 +305,7 @@
     <div class="card c1" id="cardEq"><div class="k">账户净值 EQUITY</div><div class="v mono" id="equity">¥0</div><div class="sub2 mono" id="equitySub"></div></div>
     <div class="card c2"><div class="k">可用保证金 FREE</div><div class="v mono" id="free">¥0</div><div class="sub2 mono" id="freeSub"></div></div>
     <div class="card c3" id="cardMl"><div class="k">保证金维持率</div><div class="v mono" id="mlevel">—</div><div class="sub2 mono" id="mlevelSub"></div></div>
-    <div class="card c4"><div class="k">本局已实现 PnL</div><div class="v mono" id="realized">¥0</div><div class="sub2 mono" id="realizedSub"></div></div>
+    <div class="card c4"><div class="k">本局净盈亏 PnL</div><div class="v mono" id="realized">¥0</div><div class="sub2 mono" id="realizedSub"></div></div>
     <div class="card c5"><div class="k">进度 TICK</div><div class="v mono" id="tickinfo">0 / 60</div><div class="sub2 mono" id="modeInfo">波动 —</div></div>
   </div>
 
@@ -330,6 +330,27 @@
 
     <div class="side">
       <div class="panel">
+        <h3><span class="dot" style="background:var(--purple)"></span>交易操作<span class="r mono" id="opsTick">TICK 0 / 60</span></h3>
+        <div class="btn-row" style="margin-top:0">
+          <button class="btn-close" id="btnFlat" disabled>全部平仓 CLOSE</button>
+        </div>
+        <div class="btn-row">
+          <button class="btn-next" id="btnStepTop" style="font-size:12px">⏭ 单步推进</button>
+        </div>
+        <div class="row" style="margin-top:8px;font-size:11px;line-height:1.75">
+          <span class="lab">时间推进在屏幕底部：<b style="color:var(--down)">⏭</b> 单步 · <b>+</b>/<b>−</b> 调档 · <b>❚❚</b> 或 <b>点中间时间条</b> 暂停/继续</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3><span class="dot" style="background:var(--down)"></span>净值曲线<span class="r mono" id="sparkTag">本局</span></h3>
+        <canvas id="spark"></canvas>
+        <div class="row" style="margin-top:6px;font-size:11px">
+          <span class="lab">本局净值</span><span class="val mono" id="sparkVal">¥0</span>
+        </div>
+      </div>
+
+<div class="panel">
         <h3><span class="dot"></span>市价做空<span class="r mono">1手 = 100,000 USD</span></h3>
         <div class="row"><span class="lab">手数 LOT</span><span class="val mono" id="lotTxt">2.00</span></div>
         <input type="range" id="lotRange" min="0.01" max="30" step="0.01" value="2">
@@ -364,44 +385,23 @@
         </div>
       </div>
 
-      <div class="panel pos">
+<div class="panel pos">
         <h3><span class="dot" style="background:var(--gold)"></span>当前持仓<span class="r mono" id="posTag">空仓</span></h3>
         <div id="posBox"><div class="empty">空仓中<br><span style="font-size:11px">选好手数与杠杆，下一张空单</span></div></div>
       </div>
 
-      <div class="panel">
+<div class="panel">
         <h3><span class="dot" style="background:var(--orange)"></span>经济数据日历<span class="r mono" id="calTag">本周</span></h3>
         <div class="cal" id="calBox"></div>
       </div>
 
       <div class="panel">
-        <h3><span class="dot" style="background:var(--purple)"></span>交易操作<span class="r mono">1 tick = 2 小时</span></h3>
-        <div class="btn-row" style="margin-top:0">
-          <button class="btn-close" id="btnFlat" disabled>全部平仓</button>
-        </div>
-        <div class="row" style="margin-top:9px;font-size:11px;line-height:1.7">
-          <span class="lab">推进时间在屏幕底部：<b style="color:var(--down)">⏭</b> 单步 · <b>+</b> / <b>−</b> 调档 · <b>❚❚</b> 或<b>点中间时间条</b> 暂停继续</span>
-        </div>
-      </div>
-
-      <div class="panel">
-        <h3><span class="dot" style="background:var(--down)"></span>净值曲线<span class="r mono" id="sparkTag">本局</span></h3>
-        <canvas id="spark"></canvas>
-      </div>
-
-      <div class="panel">
         <h3><span class="dot" style="background:var(--gold)"></span>存档 · 战绩<span class="r mono" id="saveTag"></span></h3>
-        <div class="row" style="margin-bottom:5px"><span class="lab">新局起始本金</span></div>
-        <div style="display:flex;gap:6px">
-          <select id="fundMode" style="flex:0 0 88px;font-size:11px">
-            <option value="fixed">固定</option>
-            <option value="carry">滚存</option>
-          </select>
-          <input type="number" id="baseFund" min="1000000" max="1000000000" step="1000000" value="20000000">
-        </div>
-        <div class="row" style="margin-top:7px"><span class="lab" id="balLabel">下一局起始本金</span><span class="val mono" id="saveBal">¥20,000,000</span></div>
+        <div class="row"><span class="lab">下一局起始（本局结余）</span><span class="val mono" id="saveBal">¥20,000,000</span></div>
         <div class="row"><span class="lab">历史峰值</span><span class="val mono" id="savePeak">¥20,000,000</span></div>
         <div class="row"><span class="lab">累计盈亏</span><span class="val mono" id="saveTotal">¥0</span></div>
+        <div class="row" style="margin-top:7px"><span class="lab">资金耗尽时重开本金</span></div>
+        <input type="number" id="baseFund" min="1000000" max="1000000000" step="1000000" value="20000000">
         <div id="histWrap"><div class="empty" style="padding:8px 0">还没有完成任何一局</div></div>
       </div>
     </div>
@@ -435,7 +435,6 @@
       <span class="hoi-tick mono">TICK <b id="spTick">0</b> / 60</span>
     </div>
   </div>
-</div>
 </div>
 
 <div class="overlay tut" id="ovTut">
@@ -473,7 +472,6 @@
       <div class="v mono" id="rNext">¥0</div>
     </div>
     <button class="btn-gold" style="margin-top:16px" id="btnAgain">开始下一局 ▸</button>
-    <button class="btn-ghost" style="margin-top:8px;display:none" id="btnBankrupt">资金耗尽 · 以 2000 万重新开始</button>
   </div>
 </div>
 
@@ -491,7 +489,7 @@
     ticksPerDay: 12,           // 一天 12 个 tick
     days       : 5,            // 周一至周五
     subSteps   : 10,           // 每 tick 内部子步（生成 OHLC）
-    baseVol    : 0.00135,      // 每 tick 基础波动率
+    baseVol    : 0.0045,       // 每 tick 基础波动率（→一周价格 σ≈4.5%）
     baseSpread : 1.0,          // 基础点差（pip）
     usdRate    : 0.0525,       // 美元利率 5.25%
     jpyRate    : 0.0025,       // 日元利率 0.25%
@@ -502,7 +500,8 @@
     warmup     : 48,
     maxPoints  : 130,
     maxLot     : 100,          // 券商单笔最大手数（流动性与风控限制）
-    priceBand  : [143, 157]
+    startBand : [144, 156],   // 开局价格区间（现实中枢）
+    priceBand  : [136, 164]    // 允许游走的边界，越界后软反射拉回
   };
   var TOTAL_TICKS = CFG.ticksPerDay * CFG.days;   // 60
   var SAVE_KEY = 'fx_short_save_v4';
@@ -521,11 +520,11 @@
 
   /* 经济数据日历（day 0=周一，t = 当天的 tick 序号，1 tick=2h） */
   var EVENTS = [
-    {day:0, t:11, star:2, name:'美国 ISM 制造业指数',   unit:'',  fore:50.2, prev:49.6, sd:1.1,  dp:1, dir:+1, sens:0.35},
-    {day:1, t:5,  star:3, name:'日本央行 政策利率决议', unit:'%', fore:0.25, prev:0.25, sd:0.14, dp:2, dir:-1, sens:1.30},
-    {day:2, t:11, star:3, name:'美国 CPI（同比）',      unit:'%', fore:2.6,  prev:2.9,  sd:0.14, dp:1, dir:+1, sens:0.90},
-    {day:3, t:4,  star:2, name:'日本 全国 CPI（同比）', unit:'%', fore:2.4,  prev:2.2,  sd:0.19, dp:1, dir:-1, sens:0.45},
-    {day:4, t:11, star:3, name:'美国 非农就业 NFP',     unit:'万人', fore:17.5, prev:12.0, sd:4.8, dp:1, dir:+1, sens:0.95}
+    {day:0, t:11, star:2, name:'美国 ISM 制造业指数',   unit:'',  fore:50.2, prev:49.6, sd:1.1,  dp:1, dir:+1, sens:0.30},
+    {day:1, t:5,  star:3, name:'日本央行 政策利率决议', unit:'%', fore:0.25, prev:0.25, sd:0.14, dp:2, dir:-1, sens:0.85},
+    {day:2, t:11, star:3, name:'美国 CPI（同比）',      unit:'%', fore:2.6,  prev:2.9,  sd:0.14, dp:1, dir:+1, sens:0.62},
+    {day:3, t:4,  star:2, name:'日本 全国 CPI（同比）', unit:'%', fore:2.4,  prev:2.2,  sd:0.19, dp:1, dir:-1, sens:0.38},
+    {day:4, t:11, star:3, name:'美国 非农就业 NFP',     unit:'万人', fore:17.5, prev:12.0, sd:4.8, dp:1, dir:+1, sens:0.65}
   ];
 
   /* 突发新闻（非日历，随机触发） */
@@ -543,12 +542,17 @@
   /* ===================== 存档 ===================== */
   var save = { fund:CFG.initFund, peak:CFG.initFund, round:1, history:[],
                tutorial:false, sound:false, speed:3,
-               baseFund:CFG.initFund, mode:'fixed' };   // mode: fixed=每局固定本金 / carry=滚存上局结余
+               baseFund:CFG.initFund,   // 资金耗尽后重开的本金（默认 2000 万）
+               totalPnl:0 };            // 本轮资金曲线上的累计盈亏
 
-  /* 下一局用的起始本金 */
+  function reopenFund(){ return clamp(Math.round(save.baseFund)||CFG.initFund, 1000000, 1000000000); }
+
+  /* 下一局起始资金 = 上一局结束时剩下的钱；
+     亏到无法继续（<= 破产线 或 非正常数值）则以「重开本金」重新开始 */
   function nextStartFund(){
-    return (save.mode === 'carry') ? Math.max(0, save.fund)
-                                   : clamp(Math.round(save.baseFund), 100000, 1000000000);
+    var f = Math.max(0, Math.round(save.fund));
+    if(!isFinite(f) || f <= CFG.minFund) return reopenFund();
+    return f;
   }
   function loadSave(){
     try{
@@ -563,8 +567,8 @@
           save.tutorial = !!o.tutorial; save.sound = !!o.sound;
           save.speed = clamp(o.speed || 3, 1, 5);
           save.baseFund = (typeof o.baseFund === 'number' && isFinite(o.baseFund))
-                          ? clamp(Math.round(o.baseFund), 100000, 1000000000) : CFG.initFund;
-          save.mode = (o.mode === 'carry') ? 'carry' : 'fixed';
+                          ? clamp(Math.round(o.baseFund), 1000000, 1000000000) : CFG.initFund;
+          save.totalPnl = (typeof o.totalPnl === 'number' && isFinite(o.totalPnl)) ? o.totalPnl : 0;
         }
       }
     }catch(e){}
@@ -730,21 +734,34 @@
   }
 
   function newRound(){
+    var start = nextStartFund();
     var st = {
-      balance : save.fund,        // 现金余额（含已实现盈亏、已付掉期）
-      startFund : nextStartFund(),
+      balance : start,            // 现金余额（含已实现盈亏、已付掉期）——必须与 startFund 同源
+      startFund : start,
       realized  : 0,              // 已实现交易盈亏（不含掉期）
       swapPaid  : 0,
       spreadPaid: 0,
       slipPaid  : 0,
       gross     : 0,              // 毛盈亏（未扣成本前，用于成本占比）
-      mid   : rnd(CFG.priceBand[0], CFG.priceBand[1]),
+      mid   : rnd(CFG.startBand[0], CFG.startBand[1]),   // 开局价收敛在现实中枢附近
       hist  : [], equityCurve: [], tick:0, warmIdx:0,
-      pos   : null, trend:0,
+      pos   : null,
+      // —— 市场状态（真实价格模型的隐藏变量）——
+      trend : 0,                        // AR(1) 趋势分量（动量惯性）
+      anchor: 0,                        // 均值回归中枢（缓慢漂移，仅防跑飞）
+      h     : CFG.baseVol*CFG.baseVol,  // GARCH 条件方差
+      prevE : 0,                        // 上一子步标准化创新（微观结构反转用）
+      bias  : 0,                        // ① 本周剧本：主趋势漂移（对称，期望 0）
+      biasSign: 1,
+      burst : false,                    // ② 区制：false=平静 true=爆发
+      burstDir: 1,
       events: makeEvents(),
-      trades: [], best:0, worst:0, over:false, stopOuts:0,
+      trades: [], best:0, worst:0, over:false, stopOuts:0, protected:0,
       lastSpreadPips: CFG.baseSpread
     };
+    st.anchor = st.mid;                 // 中枢从起始价开始
+    st.bias = drawWeekBias();           // 抽本周剧本（方向 50/50）
+    st.biasSign = st.bias >= 0 ? 1 : -1;
     // 预热：生成上一交易周的历史 K 线（不推进正式 tick）
     for(var i=0;i<CFG.warmup;i++) st.hist.push(stepTick(st, true));
     return st;
@@ -757,25 +774,122 @@
   function bidOf(){ return S.mid - halfSpread(S.lastSpreadPips); }
   function askOf(){ return S.mid + halfSpread(S.lastSpreadPips); }
 
-  /* 每 tick 行情推进：mid 随机游走 + 时段放大 + 事件跳空，输出 BID 的 OHLC */
+  /* ===================== 价格模型 =====================
+     核心原则：涨跌方向真正随机、对多空双方公平（做空无系统性优势），
+     但行情形态要像真实市场——有趋势段、有震荡段、有突发跳空、有黑天鹅。
+
+     为什么之前"一直赢"：旧模型的均值回归太强。可证明，对 OU 过程做空有
+       E[PnL] ≈ (λ²σ_x² + σ_n²)/2 > 0   （λ 为回归强度，σ_x 为偏离稳态的波动）
+     即"回归的可预测性"经 PnL 凸性转化成了空头的正期望。所以回归必须大幅削弱。
+
+     现在的模型 = 周剧本（对称主趋势）+ 区制切换 + 残差结构：
+       ① 周剧本       —— 本局主趋势方向严格 50/50，期望漂移 = 0
+       ② 区制切换     —— Hamilton 2-state：平静 ↔ 爆发，制造单边行情段
+       ③ 黑天鹅       —— 低概率巨额跳空，双向对称
+       ④ AR(1) 趋势   —— 动量惯性（已弱化，避免可预测性）
+       ⑤ 弱均值回归   —— 仅防止价格无界跑飞，强度下调 4 倍
+       ⑥ GJR-GARCH    —— 波动率聚集 + 杠杆效应（下跌更易放大波动）
+       ⑦ 混合正态厚尾 —— 尖峰厚尾，尾部风险真实存在
+       ⑧ 泊松跳跃     —— 无新闻的自发跳空
+       ⑨ 微观反转     —— 买卖价差弹跳造成短期负自相关
+     时段流动性（东京/伦敦/纽约）作为外生乘子。
+     ==================================================== */
+  var VOL = {
+    /* ① 周剧本：本局主趋势。方向严格 50/50，故期望漂移 = 0 */
+    strongP  : 0.26,     // 强趋势周概率（|bias| 0.85~1.30）
+    midP     : 0.24,     // 中等趋势周概率（|bias| 0.35~0.70）
+    driftUnit: 0.0011,   // 每单位 bias 的每 tick 漂移（→强趋势周约 ±10%）
+
+    /* ② 区制切换：平静 ↔ 爆发（爆发平均持续 ≈ 3.3 tick） */
+    pCalmBurst : 0.085,
+    pBurstCalm : 0.300,
+    burstVolMul  : 2.30,   // 爆发段波动倍数
+    calmVolMul   : 0.82,
+    burstDriftMul: 3.00,   // 爆发段漂移倍数
+    burstBase    : 0.0016, // 爆发段自带方向性冲击（震荡周也有行情）
+    followP      : 0.66,   // 爆发段顺主趋势的概率（其余为逆势回调，回调越频繁越难套利）
+
+    /* ③ 黑天鹅：低概率巨额跳空，双向对称 */
+    swanP : 0.010,
+    swanSd: 0.022,
+
+    /* ④~⑨ 残差结构 */
+    arRho   : 0.90,    arSd   : 0.00013,  // AR(1) 动量惯性
+    anchorSd: 0.00045, pull   : 0.0015,   // 弱均值回归（原 0.011，仅为防止价格无界跑飞）
+    bandK   : 0.050,                       // 价格带软反射（对称）
+    omega   : 2.53e-7,                     // GARCH 长期项 = baseVol²×(1-α-β-γ/2)
+    alpha   : 0.100,  beta : 0.860, gamma : 0.055,   // GJR-GARCH + 杠杆效应
+    tailP   : 0.90,   tailK: 3.10,                   // 混合正态厚尾
+    jumpL   : 0.030,  jumpSd: 0.0026, jumpSpill: 0.20, // 泊松跳跃
+    microRho: 0.17                                    // 微观结构反转
+  };
+
+  /* 抽取本周剧本：幅度分档，方向严格 50/50 → 期望 = 0 */
+  function drawWeekBias(){
+    var r = Math.random(), mag;
+    if(r < VOL.strongP)                 mag = rnd(0.85, 1.30);   // 强趋势周
+    else if(r < VOL.strongP + VOL.midP) mag = rnd(0.35, 0.70);   // 中等趋势周
+    else                                mag = rnd(0.00, 0.30);   // 震荡周
+    return mag * (Math.random() < 0.5 ? -1 : 1);
+  }
+
+  // 厚尾混合的方差归一化系数：使 E[z²]=1
+  var TAIL_NORM = Math.sqrt(VOL.tailP + (1-VOL.tailP)*VOL.tailK*VOL.tailK);
+
+  /* 标准化厚尾创新：混合正态，方差为 1，峰度 > 3 */
+  function fatRandn(){
+    var k = (Math.random() < VOL.tailP) ? 1 : VOL.tailK;
+    return randn() * k / TAIL_NORM;
+  }
+
+  /* 每 tick 行情推进，输出 BID 的 OHLC */
   function stepTick(st, warm){
     var tk = warm ? st.warmIdx : st.tick;
     if(warm) st.warmIdx++;
     var day = Math.floor(tk/CFG.ticksPerDay) % CFG.days, hr = (tk%CFG.ticksPerDay)*2;
     var ses = sessionOf(hr);
-    var N = CFG.subSteps, sub = CFG.baseVol * ses.vol / Math.sqrt(N);
+    var N = CFG.subSteps;
 
-    st.trend = st.trend*0.84 + randn()*0.00028;
+    // ② 区制切换（Hamilton 2-state 马尔可夫链）
+    var switched = null;
+    if(!warm){
+      if(st.burst){
+        if(Math.random() < VOL.pBurstCalm){ st.burst = false; switched = 'calm'; }
+      } else if(Math.random() < VOL.pCalmBurst){
+        st.burst = true;
+        st.burstDir = (Math.random() < VOL.followP ? st.biasSign : -st.biasSign);
+        switched = 'burst';
+      }
+    }
+    var regV = st.burst ? VOL.burstVolMul : VOL.calmVolMul;
+
+    // ① 本 tick 的确定性漂移（对数）
+    var driftTick;
+    if(st.burst) driftTick = st.burstDir * (Math.abs(st.bias)*VOL.driftUnit + VOL.burstBase) * VOL.burstDriftMul;
+    else         driftTick = st.bias * VOL.driftUnit;
+
+    // ④ AR(1) 动量惯性
+    st.trend = st.trend*VOL.arRho + randn()*VOL.arSd;
+    // ⑤ 弱均值回归 + 对称价格带软反射（仅防跑飞，强度已大幅下调）
+    st.anchor *= (1 + randn()*VOL.anchorSd);
+    var ab = (CFG.priceBand[0]+CFG.priceBand[1])/2, ah = (CFG.priceBand[1]-CFG.priceBand[0])/2;
+    var az = Math.log(st.anchor/ab) / Math.log(1+ah/ab);
+    if(Math.abs(az) > 1) st.anchor *= (1 - (az>0?1:-1)*(Math.abs(az)-1)*0.03);
+    var dev  = Math.log(st.mid / st.anchor);
+    var pull = -VOL.pull * dev;
+    var zpos = Math.log(st.mid/ab) / Math.log(1+ah/ab);
+    if(Math.abs(zpos) > 1) pull += -(zpos>0?1:-1) * (Math.abs(zpos)-1) * VOL.bandK;
+
     var o = st.mid, hi = o, lo = o;
-    var ev = null, flash = null, jumpPct = 0;
+    var ev = null, flash = null, jumpPct = 0, silentJump = 0, swan = 0;
 
     if(!warm){
-      // 日历事件
+      // 日历事件（预期差驱动的方向性跳空）
       for(var i=0;i<st.events.length;i++){
         var e = st.events[i];
         if(e.tick === st.tick && !e.done){
           var surprise = (e.actual - e.fore)/e.sd;        // 预期差（标准差倍数）
-          jumpPct = e.dir * clamp(surprise, -3, 3) * e.sens / 100;
+          jumpPct = e.dir * clamp(surprise, -2.4, 2.4) * e.sens / 100;
           ev = e; e.done = true;
           break;
         }
@@ -784,27 +898,52 @@
       if(!ev && Math.random() < 0.06){
         var f = FLASH[Math.floor(Math.random()*FLASH.length)];
         flash = {t:f.t, impact:f.d*rnd(f.mag[0],f.mag[1])/100};
-        jumpPct = flash.impact;
       }
+      // ⑧ 泊松自发跳跃：无新闻也会跳空（流动性缺口、程序化交易）
+      if(Math.random() < VOL.jumpL) silentJump = randn() * VOL.jumpSd;
+      // ③ 黑天鹅：低概率巨额跳空，双向对称
+      if(Math.random() < VOL.swanP) swan = randn() * VOL.swanSd;
     }
+    var jumpPctTotal = (flash ? flash.impact : 0) + jumpPct + silentJump + swan;
 
     var spreadPips = CFG.baseSpread * ses.spr * (ev ? rnd(4,9) : (flash ? rnd(2,4) : rnd(0.85,1.25)));
     spreadPips = Math.max(0.2, spreadPips);
     st.lastSpreadPips = spreadPips;
     var hs = halfSpread(spreadPips);
 
-    var jumpAt = (ev || flash) ? Math.floor(N*rnd(0.2,0.6)) : -1;
+    // ⑥ 条件标准差 = GARCH 残差波动 × 时段流动性 × 区制倍数
+    var sd    = Math.sqrt(st.h) * ses.vol * regV;
+    var subSd = sd / Math.sqrt(N);
+    var jumpAt = jumpPctTotal ? Math.floor(N*rnd(0.15,0.65)) : -1;
+
+    var logSum = 0;
     for(var k=0;k<N;k++){
-      var pct = st.trend/N + randn()*sub;
-      if(k === jumpAt) pct += jumpPct;
+      var e1 = fatRandn();
+      // ⑦⑨ 厚尾创新 + 微观结构反转（买卖价差弹跳 → 短期负自相关）
+      var pct = (driftTick + st.trend + pull)/N + subSd*(e1 - VOL.microRho*st.prevE);
+      st.prevE = e1;
+      if(k === jumpAt) pct += jumpPctTotal;
       st.mid = Math.max(50, st.mid*(1+pct));
+      logSum += Math.log(1+pct);
       var b = st.mid - hs;
       if(b>hi) hi=b; if(b<lo) lo=b;
     }
+
+    // ⑥ GJR-GARCH 递推。扣掉已解释的漂移/回归/跳空，只建模残差波动聚集。
+    // （跳空只传导 jumpSpill 比例，否则被 GARCH 放大数十倍导致波动失控）
+    if(!warm){
+      var resid = (logSum - driftTick - pull - jumpPctTotal*(1-VOL.jumpSpill)) / (ses.vol*regV);
+      var sq = resid*resid;
+      st.h = VOL.omega + VOL.alpha*sq + VOL.beta*st.h + (resid < 0 ? VOL.gamma*sq : 0);
+      if(!isFinite(st.h) || st.h < VOL.omega*0.5) st.h = VOL.omega*0.5;
+      if(st.h > VOL.omega*4000) st.h = VOL.omega*4000;
+    }
+
     var bidC = st.mid - hs;
     if(!warm) st.tick++;                    // 预热不推进正式回合
-    return {o:o-hs, h:hi, l:lo, c:bidC, ev:ev, flash:flash, spread:spreadPips, hour:hr, day:day};
-
+    return {o:o-hs, h:hi, l:lo, c:bidC, ev:ev, flash:flash, spread:spreadPips, hour:hr, day:day,
+            ret:logSum, vol:sd, burst:st.burst, burstDir:st.burstDir, switched:switched,
+            swan:!!swan};
   }
 
   /* ---------- 头寸计算 ---------- */
@@ -895,16 +1034,32 @@
       $('mlevelSub').textContent = '无持仓'; cml.className='card c3';
     }
 
-    $('realized').textContent = fmtS(S.realized);
-    $('realized').style.color = col(S.realized);
-    $('realizedSub').textContent = (S.startFund?(S.realized/S.startFund*100).toFixed(2):'0.00')+'% 本局';
+    var net = S.balance - S.startFund;                 // 与结算口径一致：现金余额 − 起始本金
+    $('realized').textContent = fmtS(net);
+    $('realized').style.color = col(net);
+    $('realizedSub').textContent = (S.startFund?(net/S.startFund*100).toFixed(2):'0.00')+'% 本局';
     $('tickinfo').textContent = S.tick + ' / ' + TOTAL_TICKS;
+    var ops = $('opsTick'); if(ops) ops.textContent = 'TICK ' + S.tick + ' / ' + TOTAL_TICKS;
     $('prog').style.width = (S.tick/TOTAL_TICKS*100)+'%';
     $('roundNo').textContent = save.round;
     var w = S.hist.slice(-13), sum=0;
     for(var i=1;i<w.length;i++){ var r=Math.log(w[i].c/w[i-1].c); sum+=r*r; }
     var sd = w.length>2 ? Math.sqrt(sum/(w.length-1)) : 0;
-    $('modeInfo').textContent = '波动 '+(sd*100).toFixed(3)+'% · '+curSess().n+(curSess().tier>=3?'（最活跃）':'');
+    var ratio = Math.sqrt(S.h) / CFG.baseVol;                 // 当前条件波动 / 长期常态
+    var vTxt = ratio>1.55 ? '剧烈 ×'+ratio.toFixed(1) : (ratio<0.62 ? '平静 ×'+ratio.toFixed(1) : '常态 ×'+ratio.toFixed(1));
+    // 区制感知：▼ 下行（空头顺风）/ ▲ 上行（空头逆风）
+    var wk = S.mid;
+    var idx0 = S.hist.length - S.tick;                 // 本周第一根 K 线的索引
+    var wk0 = (S.tick > 0 && idx0 >= 0 && idx0 < S.hist.length) ? S.hist[idx0].c : S.mid;
+    var wkRet = (wk0>0) ? (wk/wk0-1)*100 : 0;
+    var regTxt, regCol;
+    if(S.burst){ regTxt = (S.burstDir<0 ? '▼▼ 加速下行' : '▲▲ 加速上行');
+                 regCol = S.burstDir<0 ? 'var(--down)' : 'var(--up)'; }
+    else if(Math.abs(S.bias) > 0.7){ regTxt = (S.bias<0 ? '▼ 下行趋势' : '▲ 上行趋势');
+                 regCol = S.bias<0 ? 'var(--down)' : 'var(--up)'; }
+    else { regTxt = '— 震荡'; regCol = 'var(--muted)'; }
+    $('modeInfo').innerHTML = '本周 <b style="color:'+col(wkRet)+'">'+(wkRet>=0?'+':'')+wkRet.toFixed(2)+'%</b>'+
+                              ' · <b style="color:'+regCol+'">'+regTxt+'</b> · '+vTxt;
     $('btnFlat').disabled = !S.pos;
   }
 
@@ -1077,6 +1232,8 @@
     sctx.beginPath(); sctx.arc(X(arr.length-1),Y(last),2.6,0,Math.PI*2); sctx.fill();
     $('sparkTag').textContent='基准 '+fmtW(base)+' · 现 '+fmtW(last);
     $('sparkTag').style.color=good?'var(--gold)':'var(--up)';
+    var sv=$('sparkVal');
+    if(sv){ sv.textContent = fmtJ(last)+'  ('+fmtS(last-base)+')'; sv.style.color = col(last-base); }
   }
 
   function renderCal(){
@@ -1100,13 +1257,10 @@
   function renderSave(){
     var nf = nextStartFund();
     if(document.activeElement !== $('baseFund')) $('baseFund').value = save.baseFund;
-    if(document.activeElement !== $('fundMode')) $('fundMode').value = save.mode;
-    $('balLabel').textContent = (save.mode==='carry') ? '下一局起始（滚存结余）' : '下一局起始本金';
     $('saveBal').textContent = fmtJ(nf);
+    $('saveBal').style.color = (save.fund <= CFG.minFund) ? 'var(--up)' : 'var(--text)';
     $('savePeak').textContent = fmtJ(save.peak);
-    var total = 0;
-    for(var i=0;i<save.history.length;i++) total += save.history[i].pnl;
-    $('saveTotal').textContent = fmtS(total); $('saveTotal').style.color = col(total);
+    $('saveTotal').textContent = fmtS(save.totalPnl); $('saveTotal').style.color = col(save.totalPnl);
     $('saveTag').textContent = save.history.length ? '近 '+save.history.length+' 局' : '';
     var wrap=$('histWrap');
     if(!save.history.length){ wrap.innerHTML='<div class="empty" style="padding:8px 0">还没有完成任何一局</div>'; return; }
@@ -1217,8 +1371,9 @@
     if(fl>=0) SFX.win(); else SFX.lose();
     // 负余额保护：海外券商常规条款，账户不会倒欠
     if(S.balance < 0){
-      log('🛡 负余额保护启动：账户归零，超出本金的部分由券商承担','info');
-      S.realized += -S.balance; S.balance = 0;
+      S.protected += -S.balance;          // 券商承担的部分，单独记账，不混入已实现盈亏
+      log('🛡 负余额保护启动：账户归零，缺额 '+fmtJ(S.protected)+' 由券商承担','info');
+      S.balance = 0;
     }
     $('sl').value=''; $('tp').value='';
     renderAll();
@@ -1230,15 +1385,21 @@
     var p=S.pos, ask=askOf();
     // 券商风控在维持率触及阈值时执行平仓：按触发价成交，跳空部分由券商承担（负余额保护）
     var soAsk = p.entry * (1 + S.balance/p.notional - soLevel()*(p.margin/p.notional));
-    var exit  = Math.min(ask, soAsk);            // 取更有利的（触发价）作为成交价
+    // 强平必然发生在剧烈行情，且是被动市价单 → 滑点远大于主动平仓
+    var slp   = rnd(2.0, 6.0);
+    var exit  = Math.min(ask, soAsk) + slp*CFG.pip;
+    var slipCost = slp*CFG.pip*CFG.lotSize*p.lots;
     var fl = pnlOf(p, exit);
+    S.slipPaid += slipCost;
+    S.spreadPaid += pipValue(p.lots)*S.lastSpreadPips/2;   // 强平同样要付点差
     S.gross += fl; S.balance += fl; S.realized += fl;
-    S.trades.push(fl); if(fl<S.worst) S.worst=fl;
+    S.trades.push(fl); if(fl>S.best) S.best=fl; if(fl<S.worst) S.worst=fl;
     S.stopOuts++;
     S.pos=null; pushEquity();
-    var gap = ask - exit;                        // 跳空超出部分
+    var gap = ask - (exit - slp*CFG.pip);        // 跳空超出部分
     log('☠ '+(isDomestic()?'ロスカット（强制平仓）':'STOP OUT')+'！维持率跌破 '+(soLevel()*100).toFixed(0)+
         '%，系统强制平仓 @ '+exit.toFixed(3)+'，损失 '+fmtS(fl)+
+        ' [滑点 '+slp.toFixed(1)+'pip]'+
         (gap>0.001 ? '（跳空 '+gap.toFixed(3)+' 由券商承担）' : ''),'bad');
     SFX.bust();
     $('sl').value=''; $('tp').value='';
@@ -1275,6 +1436,20 @@
         log('⏱ 预告：'+WD[e.day]+' '+('0'+(e.t*2)).slice(-2)+':00 '+e.name+
             '（预期 '+e.fore.toFixed(e.dp)+e.unit+'，前值 '+e.prev.toFixed(e.dp)+e.unit+'）','info');
       }
+    }
+
+    // 区制切换播报（做空者：▼ = 顺风，▲ = 逆风）
+    if(c.switched === 'burst'){
+      if(c.burstDir < 0) log('🔥 进入加速下行段：日元急升，空单顺风——但也可能是最后一波','win');
+      else               log('🔥 进入加速上行段：美元急涨，空单承压，注意维持率','bad');
+      SFX.news();
+    } else if(c.switched === 'calm'){
+      log('— 波动回落，行情恢复平静','info');
+    }
+    if(c.swan){
+      log('🦢 黑天鹅！'+(c.ret<0?'汇市急跌':'汇市急涨')+'（'+((c.ret>=0?'+':'')+(c.ret*100).toFixed(2))+'%）——'+
+          (c.ret<0?'空头的狂欢':'空头的噩梦'), c.ret<0?'win':'bad');
+      SFX.news();
     }
 
     // 隔夜掉期（每天第一个 tick 结算前一晚）
@@ -1334,15 +1509,20 @@
     else if(ret>-15){ rank='D · 微亏：学费交得还算便宜'; rc='var(--muted)'; }
     else {            rank='E · 逆势硬扛：空头死于反弹'; rc='var(--up)'; }
 
-    save.history.push({round:save.round, start:init, end:fin, pnl:fin-init, ret:ret});
+    var pnl = fin - init;
+    save.history.push({round:save.round, start:init, end:fin, pnl:pnl, ret:ret});
     if(save.history.length>20) save.history.shift();
     save.fund = Math.max(0, Math.round(fin));
     save.peak = Math.max(save.peak, save.fund);
+    save.totalPnl += pnl;
     save.round += 1;
     writeSave();
 
-    var nextFund = nextStartFund();
-    var bankrupt = save.mode === 'carry' && nextFund <= CFG.minFund;
+    // 破产判定：结余不足 10 万（或非正常数值）→ 下一局以「重开本金」从头再来
+    var bankrupt = (!isFinite(save.fund)) || save.fund <= CFG.minFund;
+    var nextFund = bankrupt ? reopenFund() : save.fund;
+    if(bankrupt){ save.fund = nextFund; save.peak = Math.max(save.peak, nextFund);
+                  save.totalPnl = 0; save.history = []; writeSave(); }
     $('rTitle').textContent = bankrupt?'资金耗尽':(busted?'你被强制平仓':(fin>=init?'本局盈利':'本局亏损'));
     $('rRank').textContent=rank; $('rRank').style.color=rc;
     $('rInit').textContent=fmtJ(init); $('rFinal').textContent=fmtJ(fin);
@@ -1358,11 +1538,12 @@
     $('rCostRatio').textContent = ratio;
     $('rCostRatio').style.color = parseFloat(ratio)>40 ? 'var(--up)' : 'var(--muted)';
     var nb=$('rNextBox');
-    if(bankrupt){ nb.className='nextline bad'; nb.querySelector('.k').textContent='滚存资金已不足以继续交易';
-      $('rNext').textContent=fmtJ(save.fund); $('btnAgain').style.display='none'; $('btnBankrupt').style.display=''; }
-    else { nb.className='nextline';
-      nb.querySelector('.k').textContent = (save.mode==='carry') ? '下一局起始资金（滚存结余）' : '下一局起始资金（固定本金）';
-      $('rNext').textContent=fmtJ(nextFund)+'  ('+fmtW(nextFund)+')'; $('btnAgain').style.display=''; $('btnBankrupt').style.display='none'; }
+    if(bankrupt){ nb.className='nextline bad'; nb.querySelector('.k').textContent='资金不足以继续 · 已自动重开';
+      $('rNext').textContent=fmtJ(nextFund)+'  ('+fmtW(nextFund)+')';
+      $('btnAgain').textContent='以 '+fmtW(nextFund)+' 重新开始 ▸'; }
+    else { nb.className='nextline'; nb.querySelector('.k').textContent='下一局起始资金（本局结余）';
+      $('rNext').textContent=fmtJ(nextFund)+'  ('+fmtW(nextFund)+')';
+      $('btnAgain').textContent='开始下一局 ▸'; }
     $('ov').classList.add('on');
     log('===== 第 '+(save.round-1)+' 局结束：'+rank+'，结余 '+fmtW(fin)+'（成本 '+fmtW(cost)+'）=====', fin>=init?'win':'bad');
     renderAll();
@@ -1372,19 +1553,26 @@
 
   function startRound(){
     setSpeed(0);
+    // 保险：若上一局亏到无法继续（含刷新页面后的旧存档），在此落盘重开
+    if(!isFinite(save.fund) || save.fund <= CFG.minFund){
+      save.fund = reopenFund();
+      save.peak = Math.max(save.peak||0, save.fund);
+      save.totalPnl = 0; save.history = [];
+      writeSave();
+    }
     $('ov').classList.remove('on');
     $('log').innerHTML=''; $('sl').value=''; $('tp').value='';
     S = newRound();
-    $('lotInput').value = Math.max(0.01, Math.min(2, maxLots()));
+    $('lotInput').value = Math.max(0.01, Math.min(maxLots(), Math.max(1, maxLots()*0.3)));
     log('── 第 '+save.round+' 局开始 ── 本金 '+fmtJ(S.startFund)+'（'+fmtW(S.startFund)+'）· USD/JPY '+S.mid.toFixed(3));
     log('交易周：周一至周五，1 tick = 2 小时，共 60 tick。做空 USD/JPY 每日需支付隔夜掉期。');
     pushEquity(); renderAll();
   }
 
   function wipe(){
-    if(!confirm('清空存档？资金重置为 ¥20,000,000，局数归 1。')) return;
+    if(!confirm('清空存档？资金重置为 2000 万日元，局数归 1。')) return;
     save.fund=CFG.initFund; save.peak=CFG.initFund; save.round=1; save.history=[];
-    save.baseFund=CFG.initFund; save.mode='fixed';
+    save.baseFund=CFG.initFund; save.totalPnl=0;
     writeSave(); startRound();
   }
 
@@ -1392,8 +1580,10 @@
   var TUT = [
     { title:'你要做的事',
       body:'<p>你是一名外汇投机者，拿着 <b>2000 万日元</b> 本金，在 <b>USD/JPY</b> 上 <b>只能做空</b>——没有做多按钮。</p>'+
-           '<p>一局 = <b>一个完整交易周</b>：周一 00:00 到周五 22:00（JST），每 tick 2 小时，共 60 tick。结算后剩余资金自动存档，成为下一局本金。</p>'+
+           '<p>一局 = <b>一个完整交易周</b>：周一 00:00 到周五 22:00（JST），每 tick 2 小时，共 60 tick。结算后<b>剩下的钱直接成为下一局的本金</b>——赚了滚雪球，亏了就缩水。</p>'+
            '<div class="eg"><div class="row"><span>目标</span><span>本金持续增长，且不被强制平仓</span></div>'+
+           '<div class="row"><span>资金滚存</span><span>下一局起始 = 本局结束时剩下的钱</span></div>'+
+           '<div class="row" style="color:var(--orange)"><span>亏到 &lt; 10 万</span><span>自动以 2000 万重新开始</span></div>'+
            '<div class="row"><span>核心矛盾</span><span>仓位越大赚得越快，也死得越快</span></div></div>'+
            '<p>本作尽可能还原真实 FX 规则：<b>双向报价点差、隔夜掉期、时段流动性差异、经济数据预期差、保证金维持率与强制平仓</b>。数据纯本地模拟。</p>' },
     { title:'双向报价：你永远亏在点差上',
@@ -1423,6 +1613,19 @@
            '<li><b>★3 美国 CPI</b>（周三 22:00）超预期 → 美联储鹰 → 美元涨 → 你亏</li>'+
            '<li><b>★3 美国非农 NFP</b>（周五 22:00）超预期 → 美元涨 → 你亏</li></ul>'+
            '<p>数据公布瞬间点差会暴涨，市价单还会<b>滑点</b>。所以老手要么提前挂好止损，要么干脆空仓等数据。</p>' },
+    { title:'行情是怎么随机出来的',
+      body:'<p>价格不是"硬币正反面"。要让"能暴赚也能爆仓"，关键是<b>行情要走出趋势段</b>，而不是原地抖动。</p>'+
+           '<p>所以模型分成两层：</p>'+
+           '<ul><li><b>① 周剧本</b>：每周开局的隐藏主趋势——强趋势 / 中等趋势 / 震荡。<b>方向严格 50/50</b>，所以长期期望为 0，不存在对空头的偏心</li>'+
+           '<li><b>② 区制切换</b>：行情在<b>平静</b>与<b>爆发</b>之间跳变（爆发时波动 ×2.3、漂移 ×3）。爆发段顺主趋势的概率 66%，其余是<b>逆势回调</b>——这就是"一波行情 + 回调"的形态</li></ul>'+
+           '<p>爆发段开始、黑天鹅发生时，日志会播报，顶部卡片也会显示当前区制：<b style="color:var(--down)">▼▼ 加速下行</b>（空头顺风）/ <b style="color:var(--up)">▲▲ 加速上行</b>（空头承压）。</p>'+
+           '<p>在此之上还有真实市场的残差结构：<b>AR(1) 动量惯性、弱均值回归（仅防价格跑飞）、GJR-GARCH 波动聚集、下跌杠杆效应、厚尾分布、泊松跳空、买卖价差微观反转</b>。</p>'+
+           '<div class="eg"><div class="row"><span>一周涨跌</span><span>上涨周 49% / 下跌周 51%，期望 ≈ 0</span></div>'+
+           '<div class="row"><span>一周价格 σ</span><span>约 5.3%（|涨跌|&gt;5% 的周占 34%）</span></div>'+
+           '<div class="row"><span>黑天鹅</span><span>每周约 45% 概率出现一次</span></div>'+
+           '<div class="row" style="color:var(--gold)"><span>满仓 10x</span><span>|收益|&gt;30% 的局约 38%，爆仓率约 18%</span></div></div>'+
+           '<p><b>所以：轻仓求稳，重仓就是在赌——能一波翻倍，也能一波爆仓。</b>波动率约为真实 USD/JPY 的 4 倍，这是为了游戏性刻意放大的。</p>' },
+
     { title:'保证金维持率与强制平仓',
       body:'<p>真实券商不看"亏了百分之多少"，看的是 <b>保证金维持率 = 账户净值 ÷ 占用保证金 × 100%</b>。</p>'+
            '<div class="eg">'+
@@ -1448,6 +1651,7 @@
            '<li>尽量在 <b>东京或伦敦·纽约重叠时段</b> 交易，避开凌晨清淡时段的大点差</li>'+
            '<li><b>★3 数据公布前</b>要么减仓，要么挂好止损再让速度条自己跑</li>'+
            '<li>底部时间条照 <b>钢铁雄心 4</b> 的样子做的：中间黑黄警示条是 <b>当前时刻</b>，<b>点它一下就能暂停/继续</b>（左侧那个小图标会跟着变 ▸ / ❚❚）；旁边 <b>−</b> 减速、<b>❚❚</b> 暂停、<b>+</b> 加速，下方五个小方块表示当前档位（<b>绿=运行中，红=暂停</b>，暂停时也能调）。节奏无聊时连按 <b>+</b> 到 5 档快进，遇到 <b>★3 数据</b> 提前按 <b>❚❚</b> 或 <b>空格</b> 停下手动处理</li>'+
+           '<li>右侧栏从上到下依次是：<b>交易操作</b>（平仓 / 单步）、<b>净值曲线</b>（一眼看本局赚没赚）、<b>市价做空</b>、<b>当前持仓</b>、<b>经济数据日历</b>、<b>存档战绩</b></li>'+
            '<li>短线为主：<b>持仓过夜要付掉期</b>，别把空单当股票长线拿着</li></ul>'+
            '<p>记住：<b>做空的最大敌人是"它涨了一点，我再等等"</b>。空头死于反弹，也死于每天悄悄扣掉的掉期。</p>'+
            '<p style="color:var(--muted);font-size:12px">准备好了就点下面的按钮开始第 1 局。祝你好运。</p>' }
@@ -1489,22 +1693,14 @@
   $('hoiDateBox').addEventListener('click', function(){ if(!(S && S.over)) togglePause(); });
   $('baseFund').addEventListener('input', function(){
     var v = parseFloat(this.value);
-    if(isFinite(v)){ save.baseFund = clamp(Math.round(v), 100000, 1000000000); writeSave(); renderSave(); }
+    if(isFinite(v)){ save.baseFund = clamp(Math.round(v), 1000000, 1000000000); writeSave(); renderSave(); }
   });
   $('baseFund').addEventListener('change', function(){ this.value = save.baseFund; renderSave(); });
-  $('fundMode').addEventListener('change', function(){
-    save.mode = (this.value === 'carry') ? 'carry' : 'fixed';
-    writeSave(); renderSave();
-  });
   $('spUp').addEventListener('click', function(){ bumpSpeed(+1); });
   $('spDown').addEventListener('click', function(){ bumpSpeed(-1); });
   $('btnFlat').addEventListener('click', function(){ closePos('手动平仓'); });
+  $('btnStepTop').addEventListener('click', stepOnce);
   $('btnAgain').addEventListener('click', startRound);
-  $('btnBankrupt').addEventListener('click', function(){
-    save.fund=CFG.initFund; save.peak=Math.max(save.peak,CFG.initFund); save.round=1; save.history=[];
-    save.baseFund=CFG.initFund; save.mode='fixed';
-    writeSave(); startRound();
-  });
   $('btnHelp').addEventListener('click', openTut);
   $('btnWipe').addEventListener('click', wipe);
   $('btnSound').addEventListener('click', function(){
