@@ -20,18 +20,49 @@
 
   * { box-sizing: border-box; }
 
-  /* ============ 页面切换过渡（淡出 → 跳转 → 淡入）============
-     ① html 铺一层深色底：body 淡出后露出的是它，而不是浏览器默认的白色，
-        跳转前后观感连贯，不会闪一下白屏。
-     ② body 初始 opacity:0，加载完由 JS 加 .fade-in 淡入 —— 不再硬切。 */
-  html { background: #241a52; }
-  body { opacity: 0; }
-  body.fade-in  { opacity: 1; transition: opacity .34s ease; }
-  body.fade-out { opacity: 0; transition: opacity .26s ease; }
+  /* ============ 页面切换动画（复刻 PC 版博客主页的圆形展开）============
+     ⚠️ 关键修复：body 始终保持可见，动画全部交给 .page-veil 覆盖层。
+        旧写法把初始状态设成 body{opacity:0}，一旦页面被浏览器缓存
+        （后退 / 前进走 bfcache）或从后台标签恢复，JS 不会重跑，
+        body 就永远停在透明状态 —— 整页只剩紫底，必须手动刷新。
+        改用覆盖层后，默认状态就是「完全不遮挡」，任何异常下看到的都是正常页面。 */
+  .page-veil {
+    position: fixed; inset: 0; z-index: 99990;
+    pointer-events: none;
+    background: linear-gradient(135deg, #4c5fd7 0%, #764ba2 45%, #2b1055 100%);
+    /* 默认 circle(0) = 完全不遮挡；--vx / --vy 是展开圆心 */
+    clip-path: circle(0px at var(--vx, 50%) var(--vy, 50%));
+    -webkit-clip-path: circle(0px at var(--vx, 50%) var(--vy, 50%));
+  }
+  /* 入场：紫幕中间开洞、洞扩散到全屏 —— 画面从一点展开（同 PC 版观感） */
+  .page-veil.opening {
+    animation: veilReveal .75s cubic-bezier(.4, 0, .2, 1) both;
+  }
+  @keyframes veilReveal {
+    from { clip-path: circle(150vmax at var(--vx, 50%) var(--vy, 50%));
+           -webkit-clip-path: circle(150vmax at var(--vx, 50%) var(--vy, 50%)); }
+    to   { clip-path: circle(0px at var(--vx, 50%) var(--vy, 50%));
+           -webkit-clip-path: circle(0px at var(--vx, 50%) var(--vy, 50%)); }
+  }
+  /* 出场：反向，紫幕从四周收拢盖住页面，盖住后再跳转 */
+  .page-veil.closing {
+    animation: veilCover .42s cubic-bezier(.4, 0, .2, 1) forwards;
+  }
+  @keyframes veilCover {
+    from { clip-path: circle(0px at var(--vx, 50%) var(--vy, 50%));
+           -webkit-clip-path: circle(0px at var(--vx, 50%) var(--vy, 50%)); }
+    to   { clip-path: circle(150vmax at var(--vx, 50%) var(--vy, 50%));
+           -webkit-clip-path: circle(150vmax at var(--vx, 50%) var(--vy, 50%)); }
+  }
+  /* 老浏览器不支持 clip-path：幕布直接不显示，退化成普通跳转（不会紫屏） */
+  @supports not (clip-path: circle(50% at 50% 50%)) {
+    .page-veil { display: none; }
+  }
   /* 尊重系统的「减少动态效果」设置 */
   @media (prefers-reduced-motion: reduce) {
-    body.fade-in, body.fade-out { transition: none; }
+    .page-veil.opening, .page-veil.closing { animation: none; }
   }
+
 
   body {
     margin: 0;
@@ -251,6 +282,8 @@
 </style>
 </head>
 <body>
+
+<div class="page-veil" id="pageVeil"></div>
 
 <div class="stage" id="stage"></div>
 
@@ -626,53 +659,106 @@ document.addEventListener('click', (e) => {
 });
 
 /* ==========================================================================
-   页面切换过渡：点站内链接先淡出，落地页再淡入（不再硬切）
+   页面切换动画：圆形展开 / 收拢（复刻 PC 版博客主页 .stage-profile 的观感）
    --------------------------------------------------------------------------
-   ⚠️ 只拦「同源 + 同标签 + 普通左键」的链接；
-      新标签打开（Ctrl / Cmd / 中键）、外链、锚点、下载一律放行，行为不变。
+   ⚠️ 与旧版最大的不同：不再改 body 的 opacity。
+      body 一旦停在透明状态，页面被浏览器缓存（后退走 bfcache）后
+      JS 不会重跑，就永远恢复不回来 —— 表现就是"返回后一片紫，要刷新"。
+      现在动画全在覆盖层上，页面本体始终可见。
    ========================================================================== */
 (function pageTransition() {
-  var FADE_OUT_MS = 260;
+  var veil = document.getElementById('pageVeil');
+  var ORIGIN_KEY = 'zoz_page_origin';
+  var COVER_MS = 420;
 
-  /* ---------- 进场：能画的第一帧就淡入 ---------- */
+  function setOrigin(x, y) {
+    if (!veil) return;
+    veil.style.setProperty('--vx', x + 'px');
+    veil.style.setProperty('--vy', y + 'px');
+  }
+  function loadOrigin() {
+    try {
+      var v = sessionStorage.getItem(ORIGIN_KEY);
+      if (!v) return null;
+      var p = v.split(',');
+      var x = parseFloat(p[0]), y = parseFloat(p[1]);
+      return (isFinite(x) && isFinite(y)) ? { x: x, y: y } : null;
+    } catch (e) { return null; }
+  }
+  function saveOrigin(x, y) {
+    try { sessionStorage.setItem(ORIGIN_KEY, x + ',' + y); } catch (e) {}
+  }
+  /* 强制清掉幕布上的动画状态，回到「完全不遮挡」 */
+  function resetVeil() {
+    if (!veil) return;
+    veil.classList.remove('closing');
+    veil.classList.remove('opening');
+    veil.style.animation = 'none';
+    void veil.offsetWidth;          // 强制回流，让上面的改动立即生效
+  }
+
+  /* ---------- 入场：从上次点击的位置（没有就从屏幕中心）圆形展开 ---------- */
   function enter() {
-    requestAnimationFrame(function () {
-      requestAnimationFrame(function () {
-        document.body.classList.add('fade-in');
-      });
-    });
+    if (!veil) return;
+    var o = loadOrigin();
+    if (o) setOrigin(o.x, o.y);
+    veil.style.animation = '';      // 清掉可能残留的 none
+    void veil.offsetWidth;
+    veil.classList.add('opening');
   }
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', enter);
-  } else {
-    enter();
-  }
+  requestAnimationFrame(function () { requestAnimationFrame(enter); });
 
-  /* ---------- 出场：站内链接先淡出再跳 ---------- */
+  /* ---------- 出场：紫幕收拢盖住页面，再跳 ----------
+     ⚠️ 只拦「同源 + 同标签 + 普通左键」；
+        新标签打开（Ctrl / Cmd / 中键）、外链、锚点、下载一律放行。 */
   document.addEventListener('click', function (e) {
     if (e.defaultPrevented || e.button !== 0) return;
-    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;   // 新标签/下载：不拦
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
     var a = e.target.closest && e.target.closest('a[href]');
     if (!a || a.target === '_blank' || a.hasAttribute('download')) return;
     var url = a.href;
     if (!url || url.charAt(0) === '#') return;
     try {
-      if (new URL(url, location.href).origin !== location.origin) return;   // 外链不拦
+      if (new URL(url, location.href).origin !== location.origin) return;
     } catch (err) { return; }
 
     e.preventDefault();
-    if (window.__pageLeaving) return;          // 已经在处理第二次点击了
-    window.__pageLeaving = true;               // 通知箭头逻辑：别把系统光标放出来
-    document.body.classList.remove('fade-in');
-    document.body.classList.add('fade-out');
-    setTimeout(function () { location.href = url; }, FADE_OUT_MS);
+    if (window.__pageLeaving) return;      // 已经在处理第二次点击了
+    window.__pageLeaving = true;           // 通知箭头逻辑：别把系统光标放出来
+
+    saveOrigin(e.clientX, e.clientY);      // 新页面从这个位置展开
+
+    if (!veil) { location.href = url; return; }   // 没有幕布就直接跳，绝不卡住
+    setOrigin(e.clientX, e.clientY);
+    veil.classList.remove('opening');
+    veil.style.animation = '';
+    void veil.offsetWidth;
+    veil.classList.add('closing');
+    setTimeout(function () { location.href = url; }, COVER_MS);
   }, true);   // 捕获阶段：赶在其它 click 处理之前拦下
 
-  /* 兜底：万一淡出动画没跑完就导航了，别让页面卡在半透明 */
-  window.addEventListener('pagehide', function () {
-    document.body.classList.remove('fade-out');
+  /* ============ 关键修复：从浏览器缓存恢复（后退 / 前进）============
+     bfcache 会把页面连同「紫幕已经盖住」的状态一起冻结。
+     不处理的话，返回时看到的就是一片紫 —— 旧版紫屏 bug 的根因。
+     persisted === true 表示这次是从缓存恢复，必须立刻把幕布掀掉。 */
+  window.addEventListener('pageshow', function (e) {
+    window.__pageLeaving = false;
+    resetVeil();
+    if (e.persisted) {
+      // 从缓存回来：不重播入场动画，直接显示完整页面
+      try { sessionStorage.removeItem(ORIGIN_KEY); } catch (err) {}
+    }
+  });
+
+  /* 切回本标签页：万一跳转没真发生，别让页面一直被遮着 */
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden && window.__pageLeaving) {
+      window.__pageLeaving = false;
+      resetVeil();
+    }
   });
 })();
+
 </script>
 </body>
 </html>
