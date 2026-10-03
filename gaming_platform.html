@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/png" href="/blog/pictures/zozlogo.png">
+<title>胡萝卜游戏平台</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.cn" crossorigin>
+<link href="https://fonts.googleapis.cn/css2?family=ZCOOL+KuaiLe&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --glass-bg:       rgba(255, 255, 255, 0.22);
+    --glass-bg-hover: rgba(255, 255, 255, 0.34);
+    --glass-blur:     4px;
+    --glass-saturate: 140%;
+    --glass-border:   rgba(255, 255, 255, 0.8);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #4c5fd7 0%, #764ba2 45%, #2b1055 100%);
+    color: #0f172a;
+    font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB',
+                 'Microsoft YaHei', 'Source Han Sans SC', 'Noto Sans CJK SC',
+                 'WenQuanYi Micro Hei', sans-serif;
+  }
+
+  /* ============ 背景舞台（壁纸 + 提亮遮罩，与导航页同一套） ============ */
+  .stage {
+    position: fixed; inset: 0; z-index: 0;
+  }
+  .stage::before {
+    content: ''; position: absolute; inset: 0;
+    background-image: var(--wallpaper, none);
+    background-size: cover; background-position: center;
+    opacity: 0; transition: opacity .5s ease;
+  }
+  .stage.has-wallpaper::before { opacity: 1; }
+  .stage::after {
+    content: ''; position: absolute; inset: 0;
+    background: rgba(255, 255, 255, 0.45);
+  }
+
+  /* ============ 内容层 ============ */
+  .wrap {
+    position: relative; z-index: 1;
+    max-width: 1080px; margin: 0 auto;
+    padding: 56px 20px 64px;
+  }
+
+  .head {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 16px; flex-wrap: wrap; margin-bottom: 26px;
+  }
+  .head h1 {
+    font-family: 'ZCOOL KuaiLe', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    font-size: 34px; color: #0f172a; margin: 0 0 6px; letter-spacing: 1px;
+  }
+  .head .sub { margin: 0; font-size: 13.5px; color: #475569; }
+
+  .back {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 10px 16px; border-radius: 14px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    border: 1px solid var(--glass-border);
+    color: #312e81; font-size: 13.5px; font-weight: 600; text-decoration: none;
+    transition: transform .18s ease, background .18s ease;
+  }
+  .back:hover { transform: translateY(-2px); background: var(--glass-bg-hover); }
+  .back:active { transform: translateY(0) scale(.98); }
+
+  /* ============ 游戏卡片网格 ============ */
+  .grid {
+    display: grid; gap: 16px;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  }
+  .card {
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    border: 1px solid var(--glass-border);
+    border-radius: 22px; overflow: hidden;
+    display: flex; flex-direction: column;
+    text-decoration: none; color: inherit;
+    transition: transform .2s ease, box-shadow .2s ease, background .2s ease, opacity .2s ease;
+  }
+  .card.playable:hover {
+    transform: translateY(-4px);
+    background: var(--glass-bg-hover);
+    box-shadow: 0 14px 32px rgba(30, 20, 80, .18);
+  }
+  .card.playable:active { transform: translateY(-1px) scale(.99); }
+  /* 还没做完的：不可点，整体压暗一档 */
+  .card.pending { opacity: .62; cursor: default; }
+
+  /* 右下角「开始玩」提示：默认藏在封面下方，hover 才浮上来 */
+  .play {
+    position: absolute; right: 10px; bottom: 10px;
+    font-size: 11.5px; font-weight: 700; color: #fff;
+    background: rgba(31, 41, 55, .62);
+    padding: 4px 10px; border-radius: 9px;
+    opacity: 0; transform: translateY(6px);
+    transition: opacity .2s ease, transform .2s ease;
+  }
+  .card.playable:hover .play { opacity: 1; transform: translateY(0); }
+  /* 触屏没有 hover，直接常显 */
+  @media (hover: none) { .play { opacity: 1; transform: none; } }
+  .cover {
+    height: 108px; position: relative;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 30px; font-weight: 700; color: rgba(255,255,255,.94);
+    text-shadow: 0 2px 10px rgba(0,0,0,.22);
+  }
+  .cover img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .status {
+    position: absolute; top: 10px; right: 10px;
+    font-size: 11px; font-weight: 700; color: #1f2937;
+    background: rgba(255,255,255,.82);
+    padding: 3px 9px; border-radius: 8px;
+  }
+  .body { padding: 14px 16px 16px; flex: 1; display: flex; flex-direction: column; }
+  .title { font-size: 16.5px; font-weight: 700; color: #1e293b; line-height: 1.4; }
+  .meta { font-size: 12px; color: #64748b; margin-top: 5px; }
+  .stars { font-size: 13px; color: #f59e0b; margin-top: 8px; letter-spacing: 1px; }
+  .comment {
+    font-size: 12.5px; color: #475569; line-height: 1.65; margin-top: 10px;
+    padding-top: 10px; border-top: 1px solid rgba(255,255,255,.6);
+  }
+
+  .empty {
+    padding: 40px 24px; border-radius: 22px; text-align: center;
+    background: var(--glass-bg); border: 1px solid var(--glass-border);
+    color: #475569; font-size: 14px; line-height: 1.8;
+  }
+  .empty code {
+    font-size: 13px; color: #312e81; background: rgba(255,255,255,.55);
+    padding: 2px 7px; border-radius: 6px;
+  }
+
+  /* ============ 自定义鼠标（与 PC 版博客主页完全一致）============
+     全局隐藏系统光标；指针离开网页区域时用 html.native-cursor 把系统光标还回来。
+     两者永远互斥 —— 不会同时出现两个指针，也不会一个都没有。
+     ⚠️ 不要用"手动加/减某个 class 来切换 cursor"的写法：状态一漏就整页没光标。
+        全局 none 打底 + native-cursor 覆盖，只有两种状态，不会失控。 */
+  *, *::before, *::after { cursor: none !important; }
+
+  .q-arrow {
+    position: fixed; width: 28px; height: 28px;
+    pointer-events: none; z-index: 10000;
+    /* 默认不显示：页面刚打开时箭头会停在 (0,0) 或上次的残留位置，
+       必须先检测到真实的指针输入才现身（见 .q-arrow.ready） */
+    opacity: 0;
+    transform: scale(0.6);
+    transition: opacity 0.08s ease;
+  }
+  .q-arrow.ready {
+    opacity: 1;
+    transform: scale(1);
+    transition: opacity 0.18s ease, transform 0.18s cubic-bezier(0.34, 1.4, 0.64, 1);
+  }
+  .q-arrow.hover::before { transform: scale(1.3) rotate(-5deg); }
+  .q-arrow::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 28'%3E%3Cpath d='M5 3 L22 13 L14 14.5 L17.5 21 Z' fill='%23ffffff' stroke='%234f46e5' stroke-width='2.2' stroke-linejoin='round' stroke-linecap='round'/%3E%3C/svg%3E") center/contain no-repeat;
+    transition: transform 0.15s ease;
+  }
+  .q-arrow.no-pointer { display: none; }
+
+  /* 指针离开网页区域（移到最左侧外面、地址栏、别的窗口）时：
+     自定义箭头已经藏了，但全局 cursor:none 还挂着 —— 那就会一个光标都看不见。
+     所以离开时把系统光标还回来，回来时再切回自定义箭头。
+     选择器特意加了 html.native-cursor 提高优先级，才能盖住上面那条 !important。 */
+  html.native-cursor,
+  html.native-cursor *,
+  html.native-cursor *::before,
+  html.native-cursor *::after { cursor: auto !important; }
+
+  /* ============ 尾拖粒子 ============ */
+  .cursor-particle {
+    position: fixed;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.8);
+    pointer-events: none;
+    z-index: 9999;
+    animation: particleFade 0.8s ease-out forwards;
+  }
+  @keyframes particleFade {
+    0%   { opacity: 1; transform: scale(1); }
+    100% { opacity: 0; transform: scale(0) translateY(-20px); }
+  }
+
+  /* ============ 点击冒出的爱心 ============ */
+  .click-heart {
+    position: fixed; pointer-events: none; z-index: 9998;
+    animation: heartFloat 1s ease-out forwards;
+  }
+  @keyframes heartFloat {
+    0%   { opacity: 1; transform: scale(0) rotate(0deg); }
+    20%  { transform: scale(1.4) rotate(-5deg); }
+    100% { opacity: 0; transform: scale(0.5) translateY(-100px) rotate(10deg); }
+  }
+
+  @media (max-width: 520px) {
+    .wrap { padding: 36px 16px 48px; }
+    .head h1 { font-size: 27px; }
+    .grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="stage" id="stage"></div>
+
+<div class="wrap">
+  <div class="head">
+    <div>
+      <h1 id="title">胡萝卜游戏平台</h1>
+      <p class="sub" id="subtitle"></p>
+    </div>
+    <a class="back" href="/index.html">← 返回导航页</a>
+  </div>
+
+  <div id="grid" class="grid"></div>
+</div>
+
+<div class="q-arrow" id="qArrow"></div>
+
+<!-- 数据源：本目录的 data.js（window.GAMING_PLATFORM_DATA）
+     ⚠️ 与博客的 blog/data.js 完全独立，改这里不影响博客。
+     用绝对路径打底，再从同目录补一次，两种方式都能命中。 -->
+<script src="/gaming_platform/data.js"></script>
+<script>
+/* ==========================================================================
+   胡萝卜游戏平台 · 渲染
+   数据唯一来源：gaming_platform/data.js 里的 window.GAMING_PLATFORM_DATA
+   --------------------------------------------------------------------------
+   加 / 改游戏 → 编辑同目录的 data.js，不用动这个 HTML。
+   ========================================================================== */
+
+/* ---------- 确保 data.js 到位：绝对路径没中就再试同目录，两次都失败也要渲染 ---------- */
+(function ensureData(cb) {
+  if (window.GAMING_PLATFORM_DATA) { cb(); return; }
+  var s = document.createElement('script');
+  s.src = './data.js';
+  s.onload = function () { cb(); };
+  s.onerror = function () { cb(); };   // 都失败也继续：下方会给出明确的排查提示
+  document.head.appendChild(s);
+})(boot);
+
+function boot() {
+  var D = window.GAMING_PLATFORM_DATA || null;
+
+  var grid = document.getElementById('grid');
+  var sub  = document.getElementById('subtitle');
+  var titleEl = document.getElementById('title');
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+    });
+  }
+  function stars(n) {
+    n = Math.max(0, Math.min(5, Number(n) || 0));
+    return '★★★★★'.slice(0, n) + '☆☆☆☆☆'.slice(0, 5 - n);
+  }
+  function grad(color) {
+    var c = color || '#667eea';
+    return 'linear-gradient(135deg, ' + c + ' 0%, #764ba2 100%)';
+  }
+  function showEmpty(msg) {
+    var tip = document.createElement('div');
+    tip.className = 'empty';
+    tip.innerHTML = msg;
+    grid.parentNode.replaceChild(tip, grid);
+  }
+
+  /* ---------- data.js 没加载成功：把排查路径直接写在页面上 ---------- */
+  if (!D) {
+    titleEl.textContent = '胡萝卜游戏平台';
+    showEmpty('没读到 gaming_platform/data.js。<br>' +
+      '请确认文件已上传到仓库的 <code>gaming_platform/data.js</code>，' +
+      '并且和 gaming_platform.html 在同一目录下。');
+    return;
+  }
+
+  var GAMES = Array.isArray(D.GAMES) ? D.GAMES : [];
+  titleEl.textContent = D.TITLE || '胡萝卜游戏平台';
+
+  /* ---------- 壁纸：读 data.js 的 WALLPAPERS，没配就用纯紫蓝渐变 ---------- */
+  (function wallpaper() {
+    var url = (Array.isArray(D.WALLPAPERS) && D.WALLPAPERS[0]) || '';
+    if (!url) return;
+    var stage = document.getElementById('stage');
+    var img = new Image();
+    img.onload = function () {
+      stage.style.setProperty('--wallpaper', 'url("' + url + '")');
+      stage.classList.add('has-wallpaper');
+    };
+    img.src = url;
+  })();
+
+  /* ---------- 渲染游戏卡片 ---------- */
+  if (!GAMES.length) {
+    showEmpty('还没有游戏条目 —— 到 <code>gaming_platform/data.js</code> 的 ' +
+              '<code>GAMES</code> 数组里加几条就会出现在这里。');
+    return;
+  }
+
+  var ready = GAMES.filter(function (g) { return !!g.url; }).length;
+  sub.textContent = D.SUBTITLE || ('共 ' + GAMES.length + ' 款自制游戏 · ' + ready + ' 款可玩');
+
+  grid.innerHTML = GAMES.map(function (g) {
+    var cover = g.cover
+      ? '<img src="' + esc(g.cover) + '" alt="">'
+      : '<span>' + esc(String(g.title || '?').slice(0, 1)) + '</span>';
+    var meta = [g.platform, g.hours ? g.hours + ' 小时' : ''].filter(Boolean).join(' · ');
+
+    /* 有 url → 整张卡片就是链接（点了直接进游戏）
+       没 url → 用 <article>，不可点 + 半透明，表示还在做 */
+    var tag   = g.url ? 'a' : 'article';
+    var attrs = g.url ? ' class="card playable" href="' + esc(g.url) + '"' : ' class="card pending"';
+
+    var inner =
+      '<div class="cover" style="background:' + grad(g.color) + '">' + cover +
+        (g.status ? '<span class="status">' + esc(g.status) + '</span>' : '') +
+        (g.url ? '<span class="play">▶ 开始玩</span>' : '') +
+      '</div>' +
+      '<div class="body">' +
+        '<div class="title">' + esc(g.title) + '</div>' +
+        (meta ? '<div class="meta">' + esc(meta) + '</div>' : '') +
+        (g.score ? '<div class="stars">' + stars(g.score) + '</div>' : '') +
+        (g.comment ? '<div class="comment">' + esc(g.comment) + '</div>' : '') +
+      '</div>';
+
+    return '<' + tag + attrs + '>' + inner + '</' + tag + '>';
+  }).join('');
+}
+
+/* ==========================================================================
+   自定义鼠标箭头 —— 与 PC 版博客主页（blog/pc.html）逐行一致
+   --------------------------------------------------------------------------
+   只在"确实有鼠标"的时候才显示自定义箭头：
+   页面刚加载、或者用户用触屏/触控板点击时，箭头还没拿到过真实坐标，
+   这时候显示出来会停在左上角或上次残留的位置，很出戏。
+   所以先判定设备是否具备精确指针（hover: hover + pointer: fine），
+   再等第一次真实 mousemove/pointermove 才浮现。
+   ========================================================================== */
+const qArrow = document.getElementById('qArrow');
+let pointerSeen = false;
+let lastX = null, lastY = null;
+
+function hasFinePointer() {
+  try {
+    return window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  } catch (e) { return true; }   // 不支持 matchMedia 就按有鼠标处理
+}
+
+(function initArrowVisibility() {
+  if (!hasFinePointer()) {
+    // 触屏：不显示自定义箭头，同时把被 cursor:none 干掉的原生光标还回来
+    qArrow.classList.add('no-pointer');
+    const st = document.createElement('style');
+    st.textContent = '*, *::before, *::after { cursor: auto !important; }';
+    document.head.appendChild(st);
+    return;
+  }
+
+  /* 初始就挂上 native-cursor：
+     页面刚打开时还不知道指针在哪（可能压根就没进过页面），
+     这时候如果直接 cursor:none + 箭头未显示，整个页面会一个光标都没有。
+     先显示系统光标，等第一次真实移动再无缝换成自定义箭头。 */
+  document.documentElement.classList.add('native-cursor');
+
+  /* 规则：系统指针在网页区域内 → 显示自定义箭头 + 隐藏系统光标；
+     指针离开网页区域 → 隐藏自定义箭头 + 把系统光标还回来。 */
+  function insideViewport(x, y) {
+    /* 必须严格在视口内：
+       浏览器在指针贴边/移出时会补发坐标为 0 或 innerWidth 的边缘 mousemove，
+       放行这些坐标就会让箭头卡在页面最左侧不消失 —— 于是"两个指针"。 */
+    return x > 1 && y > 1 && x < window.innerWidth - 1 && y < window.innerHeight - 1;
+  }
+  function show(x, y) {
+    if (x == null || y == null || !insideViewport(x, y)) return;   // 边缘/无效坐标一律不显示
+    pointerSeen = true; lastX = x; lastY = y;
+    qArrow.style.left = x + 'px'; qArrow.style.top = y + 'px';
+    qArrow.classList.add('ready');
+    document.documentElement.classList.remove('native-cursor');
+  }
+  function leave() {
+    qArrow.classList.remove('ready');
+    // 箭头藏了，就必须把系统光标还回来，否则那边一个指针都没有
+    document.documentElement.classList.add('native-cursor');
+  }
+  function restore(e) {
+    /* 指针回来了：优先用事件自带的坐标，没有（比如浏览器派发的假 enter 全 0）
+       才退回上一次的有效坐标；实在都没有就继续显示系统光标，
+       保证任何时刻都恰好有一个光标，不会空窗。 */
+    if (e && insideViewport(e.clientX, e.clientY)) { show(e.clientX, e.clientY); return; }
+    if (!pointerSeen || lastX == null || !insideViewport(lastX, lastY)) return;
+    show(lastX, lastY);
+  }
+
+  /* 只有真实移动才负责"显示"：
+     ⚠️ 不能用 mouseenter/pointerenter 来首次显示 —— 浏览器在页面加载完成、
+        窗口重新获得焦点时会派发一个 clientX/clientY 全是 0 的假 enter 事件，
+        照它定位就会在网页左上角凭空卡住一个箭头，看起来像多了一个指针。 */
+  document.addEventListener('mousemove', (e) => {
+    if (!insideViewport(e.clientX, e.clientY)) { leave(); return; }  // 贴到边缘就收起
+    if (!pointerSeen || !qArrow.classList.contains('ready')) show(e.clientX, e.clientY);
+  });
+  document.addEventListener('pointermove', (e) => {
+    if (e.pointerType !== 'mouse') return;
+    if (!insideViewport(e.clientX, e.clientY)) { leave(); return; }
+    if (!pointerSeen || !qArrow.classList.contains('ready')) show(e.clientX, e.clientY);
+  });
+
+  // 指针离开文档 → 收起 + 还回系统光标
+  document.addEventListener('mouseleave', leave);
+  document.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') leave(); });
+  // 兜底：mouseout 且 relatedTarget 为空 = 指针离开了窗口（最可靠的跨浏览器判定）
+  document.addEventListener('mouseout', (e) => { if (!e.relatedTarget) leave(); });
+  // 重新进入：先摘掉 native-cursor，等真实移动再显示箭头
+  document.addEventListener('mouseenter', restore);
+  document.addEventListener('pointerenter', (e) => { if (e.pointerType === 'mouse') restore(e); });
+  // 切走标签页 / 切到别的程序
+  window.addEventListener('blur', leave);
+})();
+
+/* 位置跟随：无条件更新，与"显隐判定"完全解耦。
+   ⚠️ 之前把边界检查写在这里，鼠标贴边时箭头就停止跟随、僵在原地 —— 就是那个 bug。 */
+function moveArrow(x, y) {
+  qArrow.style.left = x + 'px';
+  qArrow.style.top  = y + 'px';
+}
+document.addEventListener('mousemove', (e) => {
+  moveArrow(e.clientX, e.clientY);
+  createParticle(e.clientX, e.clientY);
+});
+
+function createParticle(x, y) {
+  const p = document.createElement('div');
+  p.className = 'cursor-particle';
+  p.style.left = x - 6 + 'px'; p.style.top = y - 6 + 'px';
+  const s = Math.random() * 8 + 4;
+  p.style.width = s + 'px'; p.style.height = s + 'px';
+  p.style.background = `hsla(${Math.random() * 360},100%,80%,0.8)`;
+  document.body.appendChild(p);
+  setTimeout(() => p.remove(), 800);
+}
+
+/* 悬停反馈：箭头放大 + 微旋转（事件委托，动态插入的卡片同样生效） */
+const HOVER_SELECTOR = '.playable, .back, h1, p';
+document.addEventListener('mouseover', (e) => {
+  if (e.target.closest && e.target.closest(HOVER_SELECTOR)) qArrow.classList.add('hover');
+});
+document.addEventListener('mouseout', (e) => {
+  if (e.target.closest && e.target.closest(HOVER_SELECTOR)) qArrow.classList.remove('hover');
+});
+
+/* ============ 点击冒出的爱心（与 PC 版一致）============ */
+const HEART_COLORS = ['#ff6b81', '#ff4757', '#ff3838', '#ff9ff3', '#f368e0', '#ee5a24'];
+document.addEventListener('click', (e) => {
+  const heart = document.createElement('div');
+  heart.className = 'click-heart';
+  heart.style.left = e.clientX - 25 + 'px';
+  heart.style.top  = e.clientY - 25 + 'px';
+  const size  = Math.random() * 18 + 32;
+  const color = HEART_COLORS[Math.floor(Math.random() * HEART_COLORS.length)];
+  heart.innerHTML = `<svg width="${size}" height="${size}" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" fill="${color}"/></svg>`;
+  document.body.appendChild(heart);
+  setTimeout(() => heart.remove(), 1000);
+});
+
+</script>
+</body>
+</html>
